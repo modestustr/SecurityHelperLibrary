@@ -1,0 +1,114 @@
+﻿using System;
+using System.Security.Cryptography;
+using System.Text;
+
+public static class SecurityHelperLibrary
+{
+    /// <summary>
+    /// Creates a hash for the given input using the specified salt and hash algorithm.
+    /// </summary>
+    /// <param name="input">The plain text to hash.</param>
+    /// <param name="salt">The salt to use.</param>
+    /// <param name="hashAlgorithm">Hash algorithm name from HashAlgorithmName.</param>
+    /// <returns>Base64 encoded hash string.</returns>
+    public static string ComputeHash(string input, string salt, HashAlgorithmName hashAlgorithm)
+    {
+        string saltedInput = input + salt;
+        byte[] inputBytes = Encoding.UTF8.GetBytes(saltedInput);
+        byte[] hashBytes;
+
+        using (var hashAlgo = HashAlgorithm.Create(hashAlgorithm.Name))
+        {
+            hashBytes = hashAlgo.ComputeHash(inputBytes);
+        }
+
+        return Convert.ToBase64String(hashBytes);
+    }
+
+    /// <summary>
+    /// Generates a cryptographically secure random salt.
+    /// </summary>
+    /// <param name="size">Length of the salt in bytes (default 32).</param>
+    /// <returns>Base64 encoded salt string.</returns>
+    public static string GenerateSalt(int size = 32)
+    {
+        byte[] saltBytes = new byte[size];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(saltBytes);
+        }
+        return Convert.ToBase64String(saltBytes);
+    }
+
+    /// <summary>
+    /// Hashes a password using PBKDF2 (Password-Based Key Derivation Function 2).
+    /// </summary>
+    /// <param name="password">The password to hash.</param>
+    /// <param name="salt">The salt bytes to use in the hashing process.</param>
+    /// <param name="hashAlgorithm">Hash algorithm to use with PBKDF2.</param>
+    /// <param name="iterations">Number of iterations for the hashing process (default: 100000).</param>
+    /// <param name="hashLength">Length of the resulting hash in bytes (default: 32).</param>
+    /// <returns>Base64 encoded hash string.</returns>
+    public static string HashPasswordWithPBKDF2(string password, byte[] salt,
+        HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+    {
+        using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, hashAlgorithm))
+        {
+            byte[] hash = pbkdf2.GetBytes(hashLength);
+            return Convert.ToBase64String(hash);
+        }
+    }
+
+    /// <summary>
+    /// Validates that the provided plain text matches the expected hash.
+    /// </summary>
+    /// <param name="input">The plain text to validate.</param>
+    /// <param name="salt">The salt used during hashing.</param>
+    /// <param name="expectedHash">The expected hash to compare against.</param>
+    /// <param name="hashAlgorithm">Hash algorithm name from HashAlgorithmName.</param>
+    /// <returns>True if the hash matches; otherwise false.</returns>
+    public static bool VerifyHash(string input, string salt, string expectedHash, HashAlgorithmName hashAlgorithm)
+    {
+        string computedHash = ComputeHash(input, salt, hashAlgorithm);
+        return FixedTimeEquals(
+            Encoding.UTF8.GetBytes(computedHash),
+            Encoding.UTF8.GetBytes(expectedHash)
+        );
+    }
+
+    /// <summary>
+    /// Verifies a password against a stored hash using PBKDF2.
+    /// </summary>
+    /// <param name="password">The password to verify.</param>
+    /// <param name="salt">The salt bytes used in the original hash.</param>
+    /// <param name="storedHash">The stored hash to compare against.</param>
+    /// <param name="hashAlgorithm">Hash algorithm used with PBKDF2.</param>
+    /// <param name="iterations">Number of iterations used in the original hash (default: 100000).</param>
+    /// <param name="hashLength">Length of the hash in bytes (default: 32).</param>
+    /// <returns>True if the password matches the hash; otherwise false.</returns>
+    public static bool VerifyPasswordWithPBKDF2(string password, byte[] salt,
+        string storedHash, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+    {
+        string computedHash = HashPasswordWithPBKDF2(password, salt, hashAlgorithm, iterations, hashLength);
+        return FixedTimeEquals(
+            Convert.FromBase64String(computedHash),
+            Convert.FromBase64String(storedHash)
+        );
+    }
+
+    /// <summary>
+    /// Performs a constant-time comparison to prevent timing attacks.
+    /// </summary>
+    private static bool FixedTimeEquals(byte[] a, byte[] b)
+    {
+        if (a.Length != b.Length)
+            return false;
+
+        int result = 0;
+        for (int i = 0; i < a.Length; i++)
+        {
+            result |= a[i] ^ b[i];
+        }
+        return result == 0;
+    }
+}
