@@ -1,11 +1,27 @@
-﻿# SecurityHelperLibrary
+﻿# SecurityHelperLibrary v2.0.0
 
-A lightweight C# library for secure password hashing, verification, and cryptographic utilities.  
-Supports **PBKDF2** with multiple algorithms (SHA256, SHA384, SHA512) and includes helper methods for salt generation and random key creation.
+A comprehensive C# library for secure password hashing, symmetric encryption, and cryptographic operations.
+**Multi-targeted** for .NET Framework 4.8.1 and .NET 8.0, with modern secure-memory APIs and conditional AES-GCM support.
 
-## 📦 Installation
+## Features (v2.0.0)
 
-You can add this library as a NuGet package (local or remote):
+- PBKDF2 Hashing (SHA256, SHA384, SHA512)
+- Argon2 Hashing (Argon2id)
+- HMAC Generation (SHA256, SHA384, SHA512)
+- AES-GCM Encryption (.NET 6+)
+- Span-based Secure APIs (low-alloc)
+- Secure Memory Clearing
+- Fixed-Time Comparison
+- Multi-framework Support (net481, net8.0)
+
+## Breaking Changes in v2.0.0
+
+- ISecurityHelper interface now includes new methods
+- AES-GCM methods throw NotSupportedException on .NET Framework 4.8.1
+- Added required parameter iterationCount to PBKDF2 methods
+
+## Installation
 
 ```bash
 dotnet add package SecurityHelperLibrary
+```
