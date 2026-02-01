@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36301.6 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecurityHelperLibrary", "SecurityHelperLibrary\SecurityHelperLibrary.csproj", "{000CF9BD-C660-42C4-AF04-26AFD0D136F9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecurityHelperLibrary.Tests", "SecurityHelperLibrary.Tests\SecurityHelperLibrary.Tests.csproj", "{5A1B6E8F-7D2C-4E9F-A1B3-9C5D8E7F2A6B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{000CF9BD-C660-42C4-AF04-26AFD0D136F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{000CF9BD-C660-42C4-AF04-26AFD0D136F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{000CF9BD-C660-42C4-AF04-26AFD0D136F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A1B6E8F-7D2C-4E9F-A1B3-9C5D8E7F2A6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A1B6E8F-7D2C-4E9F-A1B3-9C5D8E7F2A6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A1B6E8F-7D2C-4E9F-A1B3-9C5D8E7F2A6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A1B6E8F-7D2C-4E9F-A1B3-9C5D8E7F2A6B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
