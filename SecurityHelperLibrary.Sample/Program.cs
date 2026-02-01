@@ -19,8 +19,8 @@ using SecurityHelperLibrary.Sample.Services;
 /// 4. Initialize database (ensure created)
 /// 5. Run the application
 /// </summary>
-/// 
-var builder = WebApplicationBuilder.CreateBuilder(args);
+
+var builder = WebApplication.CreateBuilder(args);
 
 // ============================================================================
 // CONFIGURE SERVICES (Dependency Injection)

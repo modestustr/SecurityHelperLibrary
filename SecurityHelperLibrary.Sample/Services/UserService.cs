@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SecurityHelperLibrary.Sample.Data;
 using SecurityHelperLibrary.Sample.Models;
 
@@ -154,17 +155,14 @@ public class UserService : IUserService
 
         try
         {
-            // HASH: Use Argon2id from SecurityHelperLibrary to hash the password
-            // 
-            // This is the CRITICAL SECURITY STEP.
-            // The Argon2id algorithm:
-            // - Generates a random salt automatically
-            // - Applies multiple iterations (memory-hard)
-            // - Returns a string like: $argon2id$v=19$m=19456,t=2,p=1$[salt]$[hash]
-            // - Takes ~50-100ms on modern hardware (intentionally slow for security!)
-            //
-            // The plaintext password is NEVER stored.
-            string passwordHash = _securityHelper.HashPasswordWithArgon2(password);
+            // HASH: Use PBKDF2 from SecurityHelperLibrary to hash the password
+            // Use the overload that automatically generates a random salt
+            // and returns it via the 'out' parameter
+            string passwordHash = _securityHelper.HashPasswordWithPBKDF2(
+                password, 
+                out string salt, 
+                System.Security.Cryptography.HashAlgorithmName.SHA256, 
+                iterations: 100000);
 
             // CREATE: New user record
             var newUser = new User
@@ -253,17 +251,7 @@ public class UserService : IUserService
                 return (false, "This account is inactive.", null);
             }
 
-            // VERIFY: Check password using Argon2 verification
-            // 
-            // Why use the service method instead of direct comparison?
-            // - Argon2 verification is complex (involves salt extraction, re-hashing, comparison)
-            // - SecurityHelperLibrary handles all of this internally
-            // - VerifyPasswordAsync uses fixed-time comparison (timing-attack resistant)
-            //
-            // Under the hood, this does:
-            // 1. Extract parameters from stored hash: $argon2id$v=19$m=19456,t=2,p=1$[salt]$[hash]
-            // 2. Re-hash the provided password with the same parameters
-            // 3. Compare the new hash with stored hash (fixed-time comparison)
+            // VERIFY: Check password using PBKDF2 verification
             bool passwordValid = await VerifyPasswordAsync(password, user.PasswordHash);
 
             if (!passwordValid)
@@ -285,24 +273,25 @@ public class UserService : IUserService
     }
 
     /// <summary>
-    /// Verifies a plaintext password against a stored Argon2 hash.
+    /// Verifies a plaintext password against a stored PBKDF2 hash.
     /// 
     /// IMPLEMENTATION DETAIL:
-    /// This wraps SecurityHelperLibrary's Argon2 verification logic.
+    /// This wraps SecurityHelperLibrary's PBKDF2 verification logic.
     /// 
     /// WHAT HAPPENS INTERNALLY:
-    /// 1. SecurityHelperLibrary extracts the salt and parameters from the stored hash
-    /// 2. Re-hashes the provided password with those same parameters
-    /// 3. Compares the new hash with the stored hash using fixed-time comparison
+    /// The stored hash contains: algorithm|iterations|salt|hash
+    /// 1. Parse the stored hash to extract components
+    /// 2. Re-hash the provided password with those same parameters
+    /// 3. Compare the new hash with the stored hash using fixed-time comparison
     /// 4. Returns true only if hashes match exactly
     /// 
     /// WHY NOT SIMPLE COMPARISON?
-    /// - Argon2 is intentionally slow (memory-hard algorithm)
-    /// - This makes brute-force attacks impractical (~50-100ms per attempt)
-    /// - Exact format: $argon2id$v=19$m=19456,t=2,p=1$[base64salt]$[base64hash]
+    /// - Fixed-time comparison prevents timing attacks
+    /// - Regular comparison leaks information via response time
+    /// - Exact format: algorithm|iterations|salt|hash (e.g., "SHA256|100000|base64salt|base64hash")
     /// 
     /// EXAMPLE USAGE (internal):
-    /// bool isValid = await verifyPasswordAsync("MyPassword123", "$argon2id$v=19$m=19456,t=2,p=1$...");
+    /// bool isValid = await verifyPasswordAsync("MyPassword123", "SHA256|100000|...|...");
     /// </summary>
     public async Task<bool> VerifyPasswordAsync(string plainPassword, string storedHash)
     {
@@ -314,9 +303,9 @@ public class UserService : IUserService
 
         try
         {
-            // VERIFY: Delegate to SecurityHelperLibrary's Argon2 verification
+            // VERIFY: Delegate to SecurityHelperLibrary's PBKDF2 verification
             // This method is synchronous, but we wrap it in a Task to maintain async consistency
-            return await Task.Run(() => _securityHelper.VerifyPasswordWithArgon2(plainPassword, storedHash));
+            return await Task.Run(() => _securityHelper.VerifyPasswordWithPBKDF2(plainPassword, storedHash));
         }
         catch
         {
