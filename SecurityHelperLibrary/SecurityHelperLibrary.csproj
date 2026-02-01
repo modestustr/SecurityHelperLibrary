@@ -14,7 +14,7 @@
     <Authors>Uysal YILMAZ</Authors>
     <Company>ModestusNet</Company>
     <PackageId>SecurityHelperLibrary</PackageId>
-    <Description>General-purpose cryptographic helper library for hashing, PBKDF2, and secure comparison.</Description>
+    <Description>Added ISecurityHelper interface (DI support), Argon2id, HMAC, and AES-GCM. Check the Migration Guide in the repository.</Description>
     <PackageTags>security;hash;pbkdf2;crypto;password</PackageTags>
     <RepositoryUrl>https://github.com/modestustr/SecurityHelperLibrary</RepositoryUrl>
     <PackageOutputPath>..\nuget-packages</PackageOutputPath>
