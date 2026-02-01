@@ -1,0 +1,23 @@
+# Ignore build results
+bin/
+obj/
+.vs/
+
+# Ignore database file
+*.db
+*.db-shm
+*.db-wal
+
+# Ignore user secrets
+secrets.json
+
+# Ignore Visual Studio Code
+.vscode/
+
+# Ignore IDE files
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
