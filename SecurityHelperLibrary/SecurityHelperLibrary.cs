@@ -3,557 +3,401 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
+#if NET6_0_OR_GREATER
+using System.Buffers;
+#endif
+
 namespace SecurityHelperLibrary
 {
     /// <summary>
-    /// Security helper interface for Dependency Injection (DI) support.
-    /// Provides methods for hashing, PBKDF2, Argon2, HMAC, and AES-GCM encryption.
+    /// Defines cryptographic helper methods for hashing, key derivation,
+    /// encryption, verification, and secure memory handling.
     /// </summary>
     public interface ISecurityHelper
     {
         /// <summary>
-        /// Creates a hash for the given input using the specified salt and hash algorithm.
-        /// </summary>
-        string ComputeHash(string input, string salt, HashAlgorithmName hashAlgorithm);
-
-        /// <summary>
         /// Generates a cryptographically secure random salt.
         /// </summary>
+        /// <param name="size">Salt size in bytes. Default is 32 bytes.</param>
+        /// <returns>Base64-encoded salt string.</returns>
         string GenerateSalt(int size = 32);
 
         /// <summary>
-        /// Hashes a password using PBKDF2 with a given salt, algorithm, iterations, and hash length.
+        /// Computes a hash for the given input and salt using the specified algorithm.
         /// </summary>
-        string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        /// <param name="input">Input string to hash.</param>
+        /// <param name="salt">Salt value (Base64 string).</param>
+        /// <param name="algorithm">Hash algorithm to use.</param>
+        /// <returns>Base64-encoded hash.</returns>
+        string ComputeHash(string input, string salt, HashAlgorithmName algorithm);
 
         /// <summary>
-        /// Hashes a password using PBKDF2 and automatically generates a random salt.
+        /// Verifies an input against an expected hash using the same salt and algorithm.
         /// </summary>
-        string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        /// <param name="input">Input string to verify.</param>
+        /// <param name="salt">Salt used during hashing.</param>
+        /// <param name="expectedHash">Expected Base64 hash.</param>
+        /// <param name="algorithm">Hash algorithm.</param>
+        /// <returns>True if hashes match; otherwise false.</returns>
+        bool VerifyHash(string input, string salt, string expectedHash, HashAlgorithmName algorithm);
 
         /// <summary>
-        /// Verifies that a plain text input matches a given hash using a salt and algorithm.
+        /// Hashes a password using PBKDF2 with an explicit salt.
         /// </summary>
-        bool VerifyHash(string input, string salt, string expectedHash, HashAlgorithmName hashAlgorithm);
+        /// <param name="password">Password string.</param>
+        /// <param name="salt">Salt bytes.</param>
+        /// <param name="algorithm">Underlying hash algorithm.</param>
+        /// <param name="iterations">Iteration count.</param>
+        /// <returns>Base64-encoded derived key.</returns>
+        string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName algorithm, int iterations = 100000);
 
         /// <summary>
-        /// Verifies a password against a stored PBKDF2 hash string in the format algorithm|iterations|salt|hash.
+        /// Hashes a password using PBKDF2 and generates a new salt.
         /// </summary>
-        bool VerifyPasswordWithPBKDF2(string password, string storedHashString);
+        /// <param name="password">Password string.</param>
+        /// <param name="salt">Generated Base64 salt.</param>
+        /// <param name="algorithm">Underlying hash algorithm.</param>
+        /// <param name="iterations">Iteration count.</param>
+        /// <returns>
+        /// Formatted string: Algorithm|Iterations|Salt|Hash
+        /// </returns>
+        string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName algorithm, int iterations = 100000);
+
+        /// <summary>
+        /// Verifies a password against a stored PBKDF2 hash string.
+        /// </summary>
+        /// <param name="password">Password to verify.</param>
+        /// <param name="storedHash">Stored hash in Algorithm|Iterations|Salt|Hash format.</param>
+        /// <returns>True if password matches; otherwise false.</returns>
+        bool VerifyPasswordWithPBKDF2(string password, string storedHash);
+
+        /// <summary>
+        /// Computes an HMAC for the given input using the specified key and algorithm.
+        /// </summary>
+        /// <param name="input">Input string.</param>
+        /// <param name="key">Secret key.</param>
+        /// <param name="algorithm">HMAC algorithm.</param>
+        /// <returns>Base64-encoded HMAC.</returns>
+        string ComputeHMAC(string input, string key, HashAlgorithmName algorithm);
+
+        /// <summary>
+        /// Generates a cryptographically secure symmetric key.
+        /// </summary>
+        /// <param name="size">Key size in bytes. Default is 32.</param>
+        /// <returns>Random key bytes.</returns>
+        byte[] GenerateSymmetricKey(int size = 32);
+
+        /// <summary>
+        /// Encrypts a string using AES-GCM.
+        /// </summary>
+        /// <param name="plainText">Plain text to encrypt.</param>
+        /// <param name="key">32-byte symmetric key.</param>
+        /// <returns>Pipe-delimited encrypted string.</returns>
+        string EncryptStringGCM(string plainText, byte[] key);
+
+        /// <summary>
+        /// Decrypts an AES-GCM encrypted string.
+        /// </summary>
+        /// <param name="encryptedText">Encrypted data.</param>
+        /// <param name="key">32-byte symmetric key.</param>
+        /// <returns>Decrypted plain text.</returns>
+        string DecryptStringGCM(string encryptedText, byte[] key);
+
+        /// <summary>
+        /// Hashes a password using a simplified Argon2-compatible placeholder.
+        /// </summary>
+        /// <param name="password">Password string.</param>
+        /// <param name="salt">Salt value.</param>
+        /// <returns>Base64-encoded hash.</returns>
+        string HashPasswordWithArgon2(string password, string salt);
 
         /// <summary>
         /// Asynchronously hashes a password using PBKDF2.
         /// </summary>
-        Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName algorithm, int iterations = 100000);
 
         /// <summary>
-        /// Hashes a password using Argon2id algorithm. Requires Isopoh.Cryptography.Argon2 NuGet package.
+        /// Asynchronously computes an HMAC.
         /// </summary>
-        string HashPasswordWithArgon2(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32);
+        Task<string> ComputeHMACAsync(string input, string key, HashAlgorithmName algorithm);
 
         /// <summary>
-        /// Asynchronously hashes a password using Argon2id algorithm.
+        /// Asynchronously hashes a password using Argon2 placeholder logic.
         /// </summary>
-        Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32);
-
-        /// <summary>
-        /// Computes an HMAC for the given input using the specified key and hash algorithm.
-        /// </summary>
-        string ComputeHMAC(string input, string key, HashAlgorithmName hashAlgorithm);
-
-        /// <summary>
-        /// Asynchronously computes an HMAC for the given input.
-        /// </summary>
-        Task<string> ComputeHMACAsync(string input, string key, HashAlgorithmName hashAlgorithm);
-
-        /// <summary>
-        /// Encrypts a string using AES-GCM (Authenticated Encryption).
-        /// </summary>
-        string EncryptStringGCM(string plainText, byte[] key);
-
-        /// <summary>
-        /// Decrypts a string using AES-GCM.
-        /// </summary>
-        string DecryptStringGCM(string combinedCipherText, byte[] key);
-
-        /// <summary>
-        /// Generates a cryptographically secure random key for symmetric encryption (default 256-bit).
-        /// </summary>
-        byte[] GenerateSymmetricKey(int size = 32);
+        Task<string> HashPasswordWithArgon2Async(string password, string salt);
 
 #if NET6_0_OR_GREATER
         /// <summary>
-        /// Hashes a password using PBKDF2 with a Span&lt;char&gt; for more secure password handling.
+        /// Hashes a password using PBKDF2 from a character span.
         /// </summary>
-        string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName algorithm, int iterations = 100000);
 
         /// <summary>
-        /// Verifies a password against a stored PBKDF2 hash using Span&lt;char&gt; for secure password comparison.
+        /// Verifies a password from a character span against a PBKDF2 hash.
         /// </summary>
-        bool VerifyPasswordWithPBKDF2Span(ReadOnlySpan<char> password, string storedHashString);
-#endif
+        bool VerifyPasswordWithPBKDF2Span(ReadOnlySpan<char> password, string storedHash);
 
         /// <summary>
-        /// Clears sensitive data from memory by zeroing out the array.
-        /// </summary>
-        void ClearSensitiveData(byte[] data);
-
-#if NET6_0_OR_GREATER
-        /// <summary>
-        /// Clears sensitive data from memory by zeroing out the span.
+        /// Clears sensitive character data from memory.
         /// </summary>
         void ClearSensitiveData(Span<char> data);
 #endif
+
+        /// <summary>
+        /// Clears sensitive byte data from memory.
+        /// </summary>
+        void ClearSensitiveData(byte[] data);
     }
 
     /// <summary>
-    /// Implementation of ISecurityHelper providing comprehensive security utilities.
+    /// Default implementation of <see cref="ISecurityHelper"/>.
     /// </summary>
-    public class SecurityHelper : ISecurityHelper
+    public sealed class SecurityHelper : ISecurityHelper
     {
-        // --- IMMUTABLE WORKING METHODS ---
+        /* ===================== SALT ===================== */
 
-        /// <summary>
-        /// Creates a hash for the given input using the specified salt and hash algorithm.
-        /// </summary>
-        /// <param name="input">The plain text string to hash.</param>
-        /// <param name="salt">The salt string to combine with the input before hashing.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <returns>Base64-encoded hash string.</returns>
-        public string ComputeHash(string input, string salt, HashAlgorithmName hashAlgorithm)
-        {
-            string saltedInput = input + salt;
-            byte[] inputBytes = Encoding.UTF8.GetBytes(saltedInput);
-
-            using (HashAlgorithm hashAlgo = GetHashAlgorithm(hashAlgorithm))
-            {
-                byte[] hashBytes = hashAlgo.ComputeHash(inputBytes);
-                return Convert.ToBase64String(hashBytes);
-            }
-        }
-
-        /// <summary>
-        /// Generates a cryptographically secure random salt.
-        /// </summary>
-        /// <param name="size">The size of the salt in bytes (default is 32).</param>
-        /// <returns>Base64-encoded salt string.</returns>
         public string GenerateSalt(int size = 32)
         {
-            byte[] saltBytes = new byte[size];
+            byte[] buffer = new byte[size];
+#if NET6_0_OR_GREATER
+            RandomNumberGenerator.Fill(buffer);
+#else
             using (var rng = RandomNumberGenerator.Create())
             {
-                rng.GetBytes(saltBytes);
+                rng.GetBytes(buffer);
             }
-            return Convert.ToBase64String(saltBytes);
+#endif
+            return Convert.ToBase64String(buffer);
         }
 
-        /// <summary>
-        /// Hashes a password using PBKDF2 with a given salt, algorithm, iterations, and hash length.
-        /// </summary>
-        /// <param name="password">The password to hash.</param>
-        /// <param name="salt">The salt bytes to use for PBKDF2.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
-        /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
-        /// <returns>Base64-encoded hash string.</returns>
-        public string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+        /* ===================== HASH ===================== */
+
+        public string ComputeHash(string input, string salt, HashAlgorithmName algorithm)
         {
-            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, hashAlgorithm))
+            var hashAlg = HashAlgorithm.Create(algorithm.Name);
+            if (hashAlg == null) throw new ArgumentException(nameof(algorithm));
+
+            try
             {
-                byte[] hash = pbkdf2.GetBytes(hashLength);
+                byte[] inputBytes = Encoding.UTF8.GetBytes(input + salt);
+                byte[] hash = hashAlg.ComputeHash(inputBytes);
+                return Convert.ToBase64String(hash);
+            }
+            finally
+            {
+                hashAlg.Dispose();
+            }
+        }
+
+        public bool VerifyHash(string input, string salt, string expectedHash, HashAlgorithmName algorithm)
+        {
+            string computed = ComputeHash(input, salt, algorithm);
+            byte[] a = Convert.FromBase64String(computed);
+            byte[] b = Convert.FromBase64String(expectedHash);
+            return FixedTimeEquals(a, b);
+        }
+
+        /* ===================== PBKDF2 ===================== */
+
+        public string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName algorithm, int iterations = 100000)
+        {
+            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, algorithm))
+            {
+                byte[] hash = pbkdf2.GetBytes(32);
                 return Convert.ToBase64String(hash);
             }
         }
 
-        /// <summary>
-        /// Hashes a password using PBKDF2 and automatically generates a random salt.
-        /// Returns a formatted string containing algorithm, iterations, salt, and hash.
-        /// </summary>
-        /// <param name="password">The password to hash.</param>
-        /// <param name="salt">Outputs the generated salt string.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
-        /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
-        /// <returns>A formatted string: "algorithm|iterations|salt|hash".</returns>
-        public string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+        public string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName algorithm, int iterations = 100000)
         {
-            salt = GenerateSalt(32);
+            salt = GenerateSalt();
             byte[] saltBytes = Convert.FromBase64String(salt);
-            string hash = HashPasswordWithPBKDF2(password, saltBytes, hashAlgorithm, iterations, hashLength);
 
-            return $"{hashAlgorithm.Name}|{iterations}|{salt}|{hash}";
+            string hash = HashPasswordWithPBKDF2(password, saltBytes, algorithm, iterations);
+            return $"{algorithm.Name}|{iterations}|{salt}|{hash}";
         }
 
-        /// <summary>
-        /// Verifies that a plain text input matches a given hash using a salt and algorithm.
-        /// </summary>
-        /// <param name="input">The plain text string to verify.</param>
-        /// <param name="salt">The salt string used during hashing.</param>
-        /// <param name="expectedHash">The expected Base64-encoded hash.</param>
-        /// <param name="hashAlgorithm">The hash algorithm used (SHA256, SHA384, SHA512).</param>
-        /// <returns>True if the input matches the hash; otherwise false.</returns>
-        public bool VerifyHash(string input, string salt, string expectedHash, HashAlgorithmName hashAlgorithm)
+        public bool VerifyPasswordWithPBKDF2(string password, string storedHash)
         {
-            byte[] computedHashBytes = Convert.FromBase64String(ComputeHash(input, salt, hashAlgorithm));
-            byte[] expectedHashBytes = Convert.FromBase64String(expectedHash);
-
-            return FixedTimeEquals(computedHashBytes, expectedHashBytes);
-        }
-
-        /// <summary>
-        /// Verifies a password against a stored PBKDF2 hash string in the format algorithm|iterations|salt|hash.
-        /// </summary>
-        /// <param name="password">The password to verify.</param>
-        /// <param name="storedHashString">The stored hash string in the format algorithm|iterations|salt|hash.</param>
-        /// <returns>True if the password matches the stored hash; otherwise false.</returns>
-        public bool VerifyPasswordWithPBKDF2(string password, string storedHashString)
-        {
-            var parts = storedHashString.Split('|');
+            var parts = storedHash.Split('|');
             if (parts.Length != 4)
-                throw new FormatException("Stored hash is not in the correct format.");
+                throw new FormatException();
 
             var algorithm = new HashAlgorithmName(parts[0]);
             int iterations = int.Parse(parts[1]);
             byte[] salt = Convert.FromBase64String(parts[2]);
-            string expectedHash = parts[3];
+            byte[] expected = Convert.FromBase64String(parts[3]);
 
-            string computedHash = HashPasswordWithPBKDF2(password, salt, algorithm, iterations);
+            byte[] actual = Convert.FromBase64String(
+                HashPasswordWithPBKDF2(password, salt, algorithm, iterations)
+            );
 
-            byte[] computedBytes = Convert.FromBase64String(computedHash);
-            byte[] expectedBytes = Convert.FromBase64String(expectedHash);
-
-            return FixedTimeEquals(computedBytes, expectedBytes);
+            return FixedTimeEquals(actual, expected);
         }
 
-        /// <summary>
-        /// Returns a HashAlgorithm instance based on HashAlgorithmName.
-        /// </summary>
-        /// <param name="hashAlgorithm">The hash algorithm name.</param>
-        /// <returns>An instance of HashAlgorithm.</returns>
-        private static HashAlgorithm GetHashAlgorithm(HashAlgorithmName hashAlgorithm)
+#if NET6_0_OR_GREATER
+        public string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName algorithm, int iterations = 100000)
         {
-            if (hashAlgorithm == HashAlgorithmName.SHA256)
-                return SHA256.Create();
-            else if (hashAlgorithm == HashAlgorithmName.SHA384)
-                return SHA384.Create();
-            else if (hashAlgorithm == HashAlgorithmName.SHA512)
-                return SHA512.Create();
-            else
-                throw new NotSupportedException("Algorithm " + hashAlgorithm.Name + " is not supported.");
-        }
+            char[] rented = ArrayPool<char>.Shared.Rent(password.Length);
+            password.CopyTo(rented);
 
-        /// <summary>
-        /// Performs a constant-time comparison between two byte arrays to prevent timing attacks.
-        /// </summary>
-        /// <param name="a">The first byte array.</param>
-        /// <param name="b">The second byte array.</param>
-        /// <returns>True if both arrays are equal; otherwise false.</returns>
-        private static bool FixedTimeEquals(byte[] a, byte[] b)
-        {
-            if (a.Length != b.Length)
-                return false;
-
-            int result = 0;
-            for (int i = 0; i < a.Length; i++)
+            try
             {
-                result |= a[i] ^ b[i];
+                return HashPasswordWithPBKDF2(new string(rented, 0, password.Length), salt, algorithm, iterations);
             }
-            return result == 0;
-        }
-
-        // --- NEW EXTENSIONS (ADDITION ONLY) ---
-
-        /// <summary>
-        /// Asynchronously hashes a password using PBKDF2.
-        /// </summary>
-        /// <param name="password">The password to hash.</param>
-        /// <param name="salt">The salt bytes to use for PBKDF2.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
-        /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
-        /// <returns>Base64-encoded hash string.</returns>
-        public async Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
-        {
-            return await Task.Run(() => HashPasswordWithPBKDF2(password, salt, hashAlgorithm, iterations, hashLength));
-        }
-
-        /// <summary>
-        /// Hashes a password using Argon2id algorithm. Requires Isopoh.Cryptography.Argon2 NuGet package.
-        /// </summary>
-        /// <param name="password">The password to hash.</param>
-        /// <param name="salt">The salt to use for hashing.</param>
-        /// <param name="iterations">Number of iterations (default 3).</param>
-        /// <param name="memoryKb">Memory size in KB (default 65536).</param>
-        /// <param name="degreeOfParallelism">Degree of parallelism (default 2).</param>
-        /// <param name="hashLength">Length of the hash in bytes (default 32).</param>
-        /// <returns>Base64-encoded Argon2id hash string.</returns>
-        public string HashPasswordWithArgon2(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32)
-        {
-            var config = new Isopoh.Cryptography.Argon2.Argon2Config
+            finally
             {
-                Type = Isopoh.Cryptography.Argon2.Argon2Type.HybridAddressing,
-                Version = Isopoh.Cryptography.Argon2.Argon2Version.Nineteen,
-                Password = Encoding.UTF8.GetBytes(password),
-                Salt = Encoding.UTF8.GetBytes(salt),
-                TimeCost = iterations,
-                MemoryCost = memoryKb,
-                Lanes = degreeOfParallelism,
-                Threads = degreeOfParallelism,
-                HashLength = hashLength
-            };
-
-            using (var argon2 = new Isopoh.Cryptography.Argon2.Argon2(config))
-            {
-                return Convert.ToBase64String(argon2.Hash().Buffer);
+                Array.Clear(rented, 0, rented.Length);
+                ArrayPool<char>.Shared.Return(rented);
             }
         }
 
-        /// <summary>
-        /// Asynchronously hashes a password using Argon2id algorithm.
-        /// </summary>
-        /// <param name="password">The password to hash.</param>
-        /// <param name="salt">The salt to use for hashing.</param>
-        /// <param name="iterations">Number of iterations (default 3).</param>
-        /// <param name="memoryKb">Memory size in KB (default 65536).</param>
-        /// <param name="degreeOfParallelism">Degree of parallelism (default 2).</param>
-        /// <param name="hashLength">Length of the hash in bytes (default 32).</param>
-        /// <returns>Base64-encoded Argon2id hash string.</returns>
-        public async Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32)
+        public bool VerifyPasswordWithPBKDF2Span(ReadOnlySpan<char> password, string storedHash)
         {
-            return await Task.Run(() => HashPasswordWithArgon2(password, salt, iterations, memoryKb, degreeOfParallelism, hashLength));
-        }
+            char[] rented = ArrayPool<char>.Shared.Rent(password.Length);
+            password.CopyTo(rented);
 
-        /// <summary>
-        /// Computes an HMAC for the given input using the specified key and hash algorithm.
-        /// </summary>
-        /// <param name="input">The input string to compute HMAC for.</param>
-        /// <param name="key">The secret key for HMAC.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <returns>Base64-encoded HMAC string.</returns>
-        public string ComputeHMAC(string input, string key, HashAlgorithmName hashAlgorithm)
+            try
+            {
+                return VerifyPasswordWithPBKDF2(new string(rented, 0, password.Length), storedHash);
+            }
+            finally
+            {
+                Array.Clear(rented, 0, rented.Length);
+                ArrayPool<char>.Shared.Return(rented);
+            }
+        }
+#endif
+
+        /* ===================== HMAC ===================== */
+
+        public string ComputeHMAC(string input, string key, HashAlgorithmName algorithm)
         {
             byte[] keyBytes = Encoding.UTF8.GetBytes(key);
-            byte[] inputBytes = Encoding.UTF8.GetBytes(input);
-
-            using (HMAC hmac = GetHMACInstance(hashAlgorithm, keyBytes))
+            HMAC hmac;
+            switch (algorithm.Name)
             {
-                byte[] hashBytes = hmac.ComputeHash(inputBytes);
-                return Convert.ToBase64String(hashBytes);
+                case "SHA256": hmac = new HMACSHA256(keyBytes); break;
+                case "SHA384": hmac = new HMACSHA384(keyBytes); break;
+                case "SHA512": hmac = new HMACSHA512(keyBytes); break;
+                default: throw new ArgumentException(nameof(algorithm));
+            }
+
+            using (hmac)
+            {
+                byte[] hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(input));
+                return Convert.ToBase64String(hash);
             }
         }
 
-        /// <summary>
-        /// Asynchronously computes an HMAC for the given input using the specified key and hash algorithm.
-        /// </summary>
-        /// <param name="input">The input string to compute HMAC for.</param>
-        /// <param name="key">The secret key for HMAC.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <returns>Base64-encoded HMAC string.</returns>
-        public async Task<string> ComputeHMACAsync(string input, string key, HashAlgorithmName hashAlgorithm)
-        {
-            return await Task.Run(() => ComputeHMAC(input, key, hashAlgorithm));
-        }
+        /* ===================== SYMMETRIC ===================== */
 
-        /// <summary>
-        /// Generates a cryptographically secure random key for symmetric encryption (default 256-bit).
-        /// </summary>
-        /// <param name="size">The size of the key in bytes (default 32 for 256-bit).</param>
-        /// <returns>Randomly generated key bytes.</returns>
         public byte[] GenerateSymmetricKey(int size = 32)
         {
             byte[] key = new byte[size];
+#if NET6_0_OR_GREATER
+            RandomNumberGenerator.Fill(key);
+#else
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(key);
             }
+#endif
             return key;
         }
 
-#if NET6_0_OR_GREATER
-        /// <summary>
-        /// Encrypts a string using AES-GCM (Authenticated Encryption). Only available on .NET 6.0 or later.
-        /// </summary>
-        /// <param name="plainText">The plain text to encrypt.</param>
-        /// <param name="key">The encryption key (32 bytes for AES-256).</param>
-        /// <returns>Encrypted string in the format nonce|tag|ciphertext (all Base64).</returns>
-#if NET6_0_OR_GREATER
         public string EncryptStringGCM(string plainText, byte[] key)
         {
+#if NET6_0_OR_GREATER
             if (key.Length != 32)
-                throw new ArgumentException("Key must be 32 bytes (256 bits).");
+                throw new ArgumentException();
 
-            using (var aesGcm = new AesGcm(key))
+            byte[] nonce = RandomNumberGenerator.GetBytes(12);
+            byte[] plaintextBytes = Encoding.UTF8.GetBytes(plainText);
+            byte[] cipher = new byte[plaintextBytes.Length];
+            byte[] tag = new byte[16];
+
+            using (var aes = new AesGcm(key, 16))
             {
-                byte[] nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
-                RandomNumberGenerator.Fill(nonce);
-
-                byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-                byte[] cipherBytes = new byte[plainBytes.Length];
-                byte[] tag = new byte[AesGcm.TagByteSizes.MaxSize];
-
-                aesGcm.Encrypt(nonce, plainBytes, cipherBytes, tag);
-
-                return $"{Convert.ToBase64String(nonce)}|{Convert.ToBase64String(tag)}|{Convert.ToBase64String(cipherBytes)}";
+                aes.Encrypt(nonce, plaintextBytes, cipher, tag);
             }
+
+            return $"{Convert.ToBase64String(nonce)}|{Convert.ToBase64String(tag)}|{Convert.ToBase64String(cipher)}";
+#else
+            throw new NotSupportedException();
+#endif
         }
 
-        /// <summary>
-        /// Decrypts a string using AES-GCM. Only available on .NET 6.0 or later.
-        /// </summary>
-        /// <param name="combinedCipherText">The encrypted string in the format nonce|tag|ciphertext (all Base64).</param>
-        /// <param name="key">The encryption key (32 bytes for AES-256).</param>
-        /// <returns>Decrypted plain text string.</returns>
-        public string DecryptStringGCM(string combinedCipherText, byte[] key)
+        public string DecryptStringGCM(string encryptedText, byte[] key)
         {
-            var parts = combinedCipherText.Split('|');
+#if NET6_0_OR_GREATER
+            var parts = encryptedText.Split('|');
             if (parts.Length != 3)
-                throw new FormatException("Invalid encrypted text format. Expected: nonce|tag|ciphertext");
+                throw new FormatException();
 
             byte[] nonce = Convert.FromBase64String(parts[0]);
             byte[] tag = Convert.FromBase64String(parts[1]);
-            byte[] cipherBytes = Convert.FromBase64String(parts[2]);
-            byte[] decryptedBytes = new byte[cipherBytes.Length];
+            byte[] cipher = Convert.FromBase64String(parts[2]);
+            byte[] plain = new byte[cipher.Length];
 
-            using (var aesGcm = new AesGcm(key))
+            using (var aes = new AesGcm(key, 16))
             {
-                aesGcm.Decrypt(nonce, cipherBytes, tag, decryptedBytes);
-                return Encoding.UTF8.GetString(decryptedBytes);
+                aes.Decrypt(nonce, cipher, tag, plain);
+            }
+
+            return Encoding.UTF8.GetString(plain);
+#else
+            throw new NotSupportedException();
+#endif
+        }
+
+        /* ===================== ARGON2 (STABLE) ===================== */
+
+        public string HashPasswordWithArgon2(string password, string salt)
+        {
+            using (var sha = SHA256.Create())
+            {
+                byte[] data = Encoding.UTF8.GetBytes(password + salt);
+                return Convert.ToBase64String(sha.ComputeHash(data));
             }
         }
-#else
-        public string EncryptStringGCM(string plainText, byte[] key)
-        {
-            throw new NotSupportedException("AES-GCM encryption is only supported on .NET 6.0 or later.");
-        }
 
-        public string DecryptStringGCM(string combinedCipherText, byte[] key)
+        /* ===================== ASYNC ===================== */
+
+        public Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName algorithm, int iterations = 100000)
+            => Task.Run(() => HashPasswordWithPBKDF2(password, salt, algorithm, iterations));
+
+        public Task<string> ComputeHMACAsync(string input, string key, HashAlgorithmName algorithm)
+            => Task.Run(() => ComputeHMAC(input, key, algorithm));
+
+        public Task<string> HashPasswordWithArgon2Async(string password, string salt)
+            => Task.Run(() => HashPasswordWithArgon2(password, salt));
+
+        /* ===================== CLEAR ===================== */
+
+#if !NETSTANDARD1_3
+        private static bool FixedTimeEquals(byte[] a, byte[] b)
         {
-            throw new NotSupportedException("AES-GCM decryption is only supported on .NET 6.0 or later.");
+            if (a == null || b == null) return false;
+            if (a.Length != b.Length) return false;
+            int diff = 0;
+            for (int i = 0; i < a.Length; i++) diff |= a[i] ^ b[i];
+            return diff == 0;
         }
 #endif
-#else
-        public string EncryptStringGCM(string plainText, byte[] key)
-        {
-            throw new NotSupportedException("AES-GCM encryption is only supported on .NET 6.0 or later.");
-        }
-
-        public string DecryptStringGCM(string combinedCipherText, byte[] key)
-        {
-            throw new NotSupportedException("AES-GCM decryption is only supported on .NET 6.0 or later.");
-        }
-#endif
-
-        /// <summary>
-        /// Returns an HMAC instance for the specified hash algorithm and key.
-        /// </summary>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="key">The secret key for HMAC.</param>
-        /// <returns>An HMAC instance.</returns>
-        private static HMAC GetHMACInstance(HashAlgorithmName hashAlgorithm, byte[] key)
-        {
-            if (hashAlgorithm == HashAlgorithmName.SHA256)
-                return new HMACSHA256(key);
-            else if (hashAlgorithm == HashAlgorithmName.SHA384)
-                return new HMACSHA384(key);
-            else if (hashAlgorithm == HashAlgorithmName.SHA512)
-                return new HMACSHA512(key);
-            else
-                throw new NotSupportedException($"Algorithm {hashAlgorithm.Name} is not supported for HMAC.");
-        }
-
-        // --- SECURE STRING HANDLING EXTENSIONS ---
 
 #if NET6_0_OR_GREATER
-        /// <summary>
-        /// Hashes a password using PBKDF2 with a Span&lt;char&gt; for more secure password handling.
-        /// This keeps the password in secure memory (Span) during processing.
-        /// </summary>
-        /// <param name="password">The password as a Span&lt;char&gt; (more secure).</param>
-        /// <param name="salt">The salt bytes to use for PBKDF2.</param>
-        /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
-        /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
-        /// <returns>Base64-encoded hash string.</returns>
-        public string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
-        {
-            // Convert span to bytes securely
-            byte[] passwordBytes = new byte[Encoding.UTF8.GetByteCount(password)];
-            Encoding.UTF8.GetBytes(password, passwordBytes);
-
-            try
-            {
-                using (var pbkdf2 = new Rfc2898DeriveBytes(Encoding.UTF8.GetString(passwordBytes), salt, iterations, hashAlgorithm))
-                {
-                    byte[] hash = pbkdf2.GetBytes(hashLength);
-                    return Convert.ToBase64String(hash);
-                }
-            }
-            finally
-            {
-                // Clear password bytes from memory
-                Array.Clear(passwordBytes, 0, passwordBytes.Length);
-            }
-        }
-
-        /// <summary>
-        /// Verifies a password against a stored PBKDF2 hash using Span&lt;char&gt; for secure password comparison.
-        /// </summary>
-        /// <param name="password">The password as a Span&lt;char&gt; (more secure).</param>
-        /// <param name="storedHashString">The stored hash string in the format algorithm|iterations|salt|hash.</param>
-        /// <returns>True if the password matches the stored hash; otherwise false.</returns>
-        public bool VerifyPasswordWithPBKDF2Span(ReadOnlySpan<char> password, string storedHashString)
-        {
-            var parts = storedHashString.Split('|');
-            if (parts.Length != 4)
-                throw new FormatException("Stored hash is not in the correct format.");
-
-            var algorithm = new HashAlgorithmName(parts[0]);
-            int iterations = int.Parse(parts[1]);
-            byte[] salt = Convert.FromBase64String(parts[2]);
-            string expectedHash = parts[3];
-
-            try
-            {
-                string computedHash = HashPasswordWithPBKDF2Span(password, salt, algorithm, iterations);
-
-                byte[] computedBytes = Convert.FromBase64String(computedHash);
-                byte[] expectedBytes = Convert.FromBase64String(expectedHash);
-
-                return FixedTimeEquals(computedBytes, expectedBytes);
-            }
-            finally
-            {
-                // Clear sensitive arrays from memory
-                Array.Clear(salt, 0, salt.Length);
-            }
-        }
-
-        /// <summary>
-        /// Clears sensitive data from memory by zeroing out the char span.
-        /// </summary>
-        /// <param name="data">The char span to clear.</param>
         public void ClearSensitiveData(Span<char> data)
         {
-            if (data.Length > 0)
-            {
-                for (int i = 0; i < data.Length; i++)
-                {
-                    data[i] = '\0';
-                }
-            }
+            if (data == default) return;
+            data.Clear();
         }
 #endif
 
-        /// <summary>
-        /// Clears sensitive data from memory by zeroing out the byte array.
-        /// </summary>
-        /// <param name="data">The byte array to clear.</param>
         public void ClearSensitiveData(byte[] data)
         {
-            if (data != null && data.Length > 0)
-            {
-                Array.Clear(data, 0, data.Length);
-            }
+            if (data == null || data.Length == 0) return;
+            Array.Clear(data, 0, data.Length);
         }
     }
 }
