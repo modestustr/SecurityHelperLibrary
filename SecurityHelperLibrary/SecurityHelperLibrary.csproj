@@ -30,6 +30,6 @@
     <!-- Optional icon -->
     <Content Include="Security.ico" />
     <None Include="README.md" Pack="true" PackagePath="" />
-    <PackageReference Include="Isopoh.Cryptography.Argon2" Version="1.3.0" />
+    <PackageReference Include="Isopoh.Cryptography.Argon2" Version="2.0.0" />
   </ItemGroup>
 </Project>
