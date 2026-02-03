@@ -382,7 +382,7 @@ namespace SecurityHelperLibrary
             if (key.Length != 32)
                 throw new ArgumentException("Key must be 32 bytes (256 bits).");
 
-            using (var aesGcm = new AesGcm(key))
+            using (var aesGcm = new AesGcm(key,16))
             {
                 byte[] nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
                 RandomNumberGenerator.Fill(nonce);
@@ -414,7 +414,7 @@ namespace SecurityHelperLibrary
             byte[] cipherBytes = Convert.FromBase64String(parts[2]);
             byte[] decryptedBytes = new byte[cipherBytes.Length];
 
-            using (var aesGcm = new AesGcm(key))
+            using (var aesGcm = new AesGcm(key,16))
             {
                 aesGcm.Decrypt(nonce, cipherBytes, tag, decryptedBytes);
                 return Encoding.UTF8.GetString(decryptedBytes);
