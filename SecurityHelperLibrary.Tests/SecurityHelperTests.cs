@@ -150,7 +150,7 @@ namespace SecurityHelperLibrary.Tests
             var parts = result.Split('|');
             Assert.Equal(4, parts.Length);
             Assert.Equal("SHA256", parts[0]);
-            Assert.Equal("100000", parts[1]); // Default iterations
+            Assert.Equal("210000", parts[1]); // Default iterations
             Assert.Equal(salt, parts[2]);
         }
 

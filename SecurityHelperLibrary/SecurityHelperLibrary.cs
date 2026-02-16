@@ -25,12 +25,12 @@ namespace SecurityHelperLibrary
         /// <summary>
         /// Hashes a password using PBKDF2 with a given salt, algorithm, iterations, and hash length.
         /// </summary>
-        string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32);
 
         /// <summary>
         /// Hashes a password using PBKDF2 and automatically generates a random salt.
         /// </summary>
-        string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32);
 
         /// <summary>
         /// Verifies that a plain text input matches a given hash using a salt and algorithm.
@@ -45,7 +45,7 @@ namespace SecurityHelperLibrary
         /// <summary>
         /// Asynchronously hashes a password using PBKDF2.
         /// </summary>
-        Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32);
 
         /// <summary>
         /// Hashes a password using Argon2id algorithm. Requires Isopoh.Cryptography.Argon2 NuGet package.
@@ -86,7 +86,7 @@ namespace SecurityHelperLibrary
         /// <summary>
         /// Hashes a password using PBKDF2 with a Span&lt;char&gt; for more secure password handling.
         /// </summary>
-        string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32);
+        string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32);
 
         /// <summary>
         /// Verifies a password against a stored PBKDF2 hash using Span&lt;char&gt; for secure password comparison.
@@ -112,6 +112,11 @@ namespace SecurityHelperLibrary
     /// </summary>
     public class SecurityHelper : ISecurityHelper
     {
+        private const int MinSaltSizeBytes = 8;
+        private const int MinHashLengthBytes = 16;
+        private const int MinArgon2Iterations = 2;
+        private const int MinArgon2MemoryKb = 32768;
+
         // --- IMMUTABLE WORKING METHODS ---
 
         /// <summary>
@@ -140,6 +145,9 @@ namespace SecurityHelperLibrary
         /// <returns>Base64-encoded salt string.</returns>
         public string GenerateSalt(int size = 32)
         {
+            if (size < MinSaltSizeBytes)
+                throw new ArgumentOutOfRangeException(nameof(size), $"Salt size must be at least {MinSaltSizeBytes} bytes.");
+
             byte[] saltBytes = new byte[size];
             using (var rng = RandomNumberGenerator.Create())
             {
@@ -154,11 +162,13 @@ namespace SecurityHelperLibrary
         /// <param name="password">The password to hash.</param>
         /// <param name="salt">The salt bytes to use for PBKDF2.</param>
         /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
+        /// <param name="iterations">Number of iterations for PBKDF2 (default 210000).</param>
         /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
         /// <returns>Base64-encoded hash string.</returns>
-        public string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+        public string HashPasswordWithPBKDF2(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32)
         {
+            ValidatePbkdf2Inputs(password, salt, iterations, hashLength);
+
             using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, iterations, hashAlgorithm))
             {
                 byte[] hash = pbkdf2.GetBytes(hashLength);
@@ -173,10 +183,10 @@ namespace SecurityHelperLibrary
         /// <param name="password">The password to hash.</param>
         /// <param name="salt">Outputs the generated salt string.</param>
         /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
+        /// <param name="iterations">Number of iterations for PBKDF2 (default 210000).</param>
         /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
         /// <returns>A formatted string: "algorithm|iterations|salt|hash".</returns>
-        public string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+        public string HashPasswordWithPBKDF2(string password, out string salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32)
         {
             salt = GenerateSalt(32);
             byte[] saltBytes = Convert.FromBase64String(salt);
@@ -270,10 +280,10 @@ namespace SecurityHelperLibrary
         /// <param name="password">The password to hash.</param>
         /// <param name="salt">The salt bytes to use for PBKDF2.</param>
         /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
+        /// <param name="iterations">Number of iterations for PBKDF2 (default 210000).</param>
         /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
         /// <returns>Base64-encoded hash string.</returns>
-        public async Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+        public async Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32)
         {
             return await Task.Run(() => HashPasswordWithPBKDF2(password, salt, hashAlgorithm, iterations, hashLength));
         }
@@ -283,19 +293,33 @@ namespace SecurityHelperLibrary
         /// </summary>
         /// <param name="password">The password to hash.</param>
         /// <param name="salt">The salt to use for hashing.</param>
-        /// <param name="iterations">Number of iterations (default 3).</param>
-        /// <param name="memoryKb">Memory size in KB (default 65536).</param>
-        /// <param name="degreeOfParallelism">Degree of parallelism (default 2).</param>
+        /// <param name="iterations">Number of iterations (default 4).</param>
+        /// <param name="memoryKb">Memory size in KB (default 131072).</param>
+        /// <param name="degreeOfParallelism">Degree of parallelism (default 4).</param>
         /// <param name="hashLength">Length of the hash in bytes (default 32).</param>
         /// <returns>Base64-encoded Argon2id hash string.</returns>
-        public string HashPasswordWithArgon2(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32)
+        public string HashPasswordWithArgon2(string password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32)
         {
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentException("Password cannot be null or empty.", nameof(password));
+            if (string.IsNullOrWhiteSpace(salt))
+                throw new ArgumentException("Salt cannot be null or empty.", nameof(salt));
+            if (iterations < MinArgon2Iterations)
+                throw new ArgumentOutOfRangeException(nameof(iterations), $"Argon2 iterations must be at least {MinArgon2Iterations}.");
+            if (memoryKb < MinArgon2MemoryKb)
+                throw new ArgumentOutOfRangeException(nameof(memoryKb), $"Argon2 memory cost must be at least {MinArgon2MemoryKb} KB.");
+            if (degreeOfParallelism < 1)
+                throw new ArgumentOutOfRangeException(nameof(degreeOfParallelism), "Degree of parallelism must be at least 1.");
+            if (hashLength < MinHashLengthBytes)
+                throw new ArgumentOutOfRangeException(nameof(hashLength), $"Hash length must be at least {MinHashLengthBytes} bytes.");
+
+            byte[] saltBytes = GetSaltBytes(salt);
             var config = new Argon2Config
             {
                 Type = Argon2Type.HybridAddressing,
                 Version =Argon2Version.Nineteen,
                 Password = Encoding.UTF8.GetBytes(password),
-                Salt = Encoding.UTF8.GetBytes(salt),
+                Salt = saltBytes,
                 TimeCost = iterations,
                 MemoryCost = memoryKb,
                 Lanes = degreeOfParallelism,
@@ -314,12 +338,12 @@ namespace SecurityHelperLibrary
         /// </summary>
         /// <param name="password">The password to hash.</param>
         /// <param name="salt">The salt to use for hashing.</param>
-        /// <param name="iterations">Number of iterations (default 3).</param>
-        /// <param name="memoryKb">Memory size in KB (default 65536).</param>
-        /// <param name="degreeOfParallelism">Degree of parallelism (default 2).</param>
+        /// <param name="iterations">Number of iterations (default 4).</param>
+        /// <param name="memoryKb">Memory size in KB (default 131072).</param>
+        /// <param name="degreeOfParallelism">Degree of parallelism (default 4).</param>
         /// <param name="hashLength">Length of the hash in bytes (default 32).</param>
         /// <returns>Base64-encoded Argon2id hash string.</returns>
-        public async Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32)
+        public async Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32)
         {
             return await Task.Run(() => HashPasswordWithArgon2(password, salt, iterations, memoryKb, degreeOfParallelism, hashLength));
         }
@@ -472,11 +496,22 @@ namespace SecurityHelperLibrary
         /// <param name="password">The password as a Span&lt;char&gt; (more secure).</param>
         /// <param name="salt">The salt bytes to use for PBKDF2.</param>
         /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
-        /// <param name="iterations">Number of iterations for PBKDF2 (default 100000).</param>
+        /// <param name="iterations">Number of iterations for PBKDF2 (default 210000).</param>
         /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
         /// <returns>Base64-encoded hash string.</returns>
-        public string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 100000, int hashLength = 32)
+        public string HashPasswordWithPBKDF2Span(ReadOnlySpan<char> password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32)
         {
+            if (password.Length == 0)
+                throw new ArgumentException("Password cannot be empty.", nameof(password));
+            if (salt == null)
+                throw new ArgumentNullException(nameof(salt));
+            if (salt.Length < MinSaltSizeBytes)
+                throw new ArgumentOutOfRangeException(nameof(salt), $"Salt length must be at least {MinSaltSizeBytes} bytes.");
+            if (iterations < 1)
+                throw new ArgumentOutOfRangeException(nameof(iterations), "Iterations must be greater than 0.");
+            if (hashLength < MinHashLengthBytes)
+                throw new ArgumentOutOfRangeException(nameof(hashLength), $"Hash length must be at least {MinHashLengthBytes} bytes.");
+
             // Convert span to bytes securely
             byte[] passwordBytes = new byte[Encoding.UTF8.GetByteCount(password)];
             Encoding.UTF8.GetBytes(password, passwordBytes);
@@ -554,6 +589,41 @@ namespace SecurityHelperLibrary
             if (data != null && data.Length > 0)
             {
                 Array.Clear(data, 0, data.Length);
+            }
+        }
+
+        private static void ValidatePbkdf2Inputs(string password, byte[] salt, int iterations, int hashLength)
+        {
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentException("Password cannot be null or empty.", nameof(password));
+            if (salt == null)
+                throw new ArgumentNullException(nameof(salt));
+            if (salt.Length < MinSaltSizeBytes)
+                throw new ArgumentOutOfRangeException(nameof(salt), $"Salt length must be at least {MinSaltSizeBytes} bytes.");
+            if (iterations < 1)
+                throw new ArgumentOutOfRangeException(nameof(iterations), "Iterations must be greater than 0.");
+            if (hashLength < MinHashLengthBytes)
+                throw new ArgumentOutOfRangeException(nameof(hashLength), $"Hash length must be at least {MinHashLengthBytes} bytes.");
+        }
+
+        private static byte[] GetSaltBytes(string salt)
+        {
+            byte[] decoded;
+            try
+            {
+                decoded = Convert.FromBase64String(salt);
+            }
+            catch (FormatException)
+            {
+                decoded = Encoding.UTF8.GetBytes(salt);
+            }
+
+            if (decoded.Length >= MinSaltSizeBytes)
+                return decoded;
+
+            using (var sha256 = SHA256.Create())
+            {
+                return sha256.ComputeHash(decoded);
             }
         }
     }
