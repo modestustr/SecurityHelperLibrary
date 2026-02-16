@@ -1,10 +1,28 @@
 # SecurityHelperLibrary
 
-Version: 2.0.0
+Version: 2.0.2
 
-SecurityHelperLibrary is a small, focused cryptographic helper library that provides hashing, PBKDF2 and Argon2 password hashing, HMAC computation, and AES-GCM authenticated encryption. This release (2.0.0) introduces safer in-memory password handling via Span-based APIs, conditional AES-GCM support for modern runtimes, and a comprehensive test suite.
+SecurityHelperLibrary is a small, focused cryptographic helper library that provides hashing, PBKDF2 and Argon2 password hashing, HMAC computation, and AES-GCM authenticated encryption. The latest release (2.0.2) focuses on security hardening and release stability.
 
-## Highlights (v2.0.0)
+## Latest Changes (v2.0.2)
+
+- Increased default PBKDF2 iterations from `100000` to `210000`.
+- Strengthened default Argon2 settings (`iterations=4`, `memoryKb=131072`, `degreeOfParallelism=4`).
+- Added stronger input guards for PBKDF2/Argon2 and minimum salt/hash lengths.
+- Improved Argon2 salt handling for Base64 and short legacy salt values.
+
+### Also Included in Recent Releases
+
+**v2.0.1**
+- Updated AES-GCM constructor usage to remove .NET 8 obsolescence warnings.
+- Improved cross-target compatibility for `net481` and `net8.0`.
+- Added fixed-time comparison fallback and disposal cleanups.
+
+For full per-version details, see:
+- `CHANGELOG.md`
+- `RELEASE_NOTES.md`
+
+## Highlights (v2.0.2)
 
 - Major version bump due to public API additions to `ISecurityHelper` (breaking change).
 - Added Span-based secure APIs for password hashing and verification (NET6.0+).
@@ -29,7 +47,7 @@ New or changed public surface (high level):
 Install from NuGet (when published):
 
 ```bash
-dotnet add package SecurityHelperLibrary --version 2.0.0
+dotnet add package SecurityHelperLibrary --version 2.0.2
 ```
 
 Basic usage (example):
@@ -103,8 +121,8 @@ SecurityHelperLibrary/
 
 ## Release Notes
 
-See `RELEASE_NOTES.md` for more details about this release.
+See `CHANGELOG.md` and `RELEASE_NOTES.md` for version-by-version details.
 
 ---
 
-Last updated: February 1, 2026
+Last updated: February 16, 2026
