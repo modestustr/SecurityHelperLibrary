@@ -50,12 +50,12 @@ namespace SecurityHelperLibrary
         /// <summary>
         /// Hashes a password using Argon2id algorithm. Requires Isopoh.Cryptography.Argon2 NuGet package.
         /// </summary>
-        string HashPasswordWithArgon2(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32);
+        string HashPasswordWithArgon2(string password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32);
 
         /// <summary>
         /// Asynchronously hashes a password using Argon2id algorithm.
         /// </summary>
-        Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 3, int memoryKb = 65536, int degreeOfParallelism = 2, int hashLength = 32);
+        Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32);
 
         /// <summary>
         /// Computes an HMAC for the given input using the specified key and hash algorithm.
@@ -224,7 +224,8 @@ namespace SecurityHelperLibrary
                 throw new FormatException("Stored hash is not in the correct format.");
 
             var algorithm = new HashAlgorithmName(parts[0]);
-            int iterations = int.Parse(parts[1]);
+            if (!int.TryParse(parts[1], out int iterations) || iterations < 1)
+                throw new FormatException("Stored hash iteration value is invalid.");
             byte[] salt = Convert.FromBase64String(parts[2]);
             string expectedHash = parts[3];
 
@@ -430,6 +431,11 @@ namespace SecurityHelperLibrary
         /// <returns>Decrypted plain text string.</returns>
         public string DecryptStringGCM(string combinedCipherText, byte[] key)
         {
+            if (key == null)
+                throw new ArgumentNullException(nameof(key));
+            if (key.Length != 32)
+                throw new ArgumentException("Key must be 32 bytes (256 bits).", nameof(key));
+
             var parts = combinedCipherText.Split('|');
             if (parts.Length != 3)
                 throw new FormatException("Invalid encrypted text format. Expected: nonce|tag|ciphertext");
@@ -544,7 +550,8 @@ namespace SecurityHelperLibrary
                 throw new FormatException("Stored hash is not in the correct format.");
 
             var algorithm = new HashAlgorithmName(parts[0]);
-            int iterations = int.Parse(parts[1]);
+            if (!int.TryParse(parts[1], out int iterations) || iterations < 1)
+                throw new FormatException("Stored hash iteration value is invalid.");
             byte[] salt = Convert.FromBase64String(parts[2]);
             string expectedHash = parts[3];
 
