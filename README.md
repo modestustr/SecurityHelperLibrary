@@ -98,6 +98,36 @@ Build the solution:
 dotnet build
 ```
 
+## Release Workflow (Automated)
+
+Use the release prep script on a matching release branch to keep versioning and changelog updates consistent.
+
+1. Create/switch to a release branch matching the target version:
+
+```bash
+git checkout -b release/2.0.3 master
+```
+
+2. Run automated release preparation:
+
+```powershell
+.\scripts\release.bat -Changes "Security: increase ..." "Fix: improve ..."
+```
+
+`Version` is auto-detected from the branch name (for example, `release/2.0.3`).
+
+Optional dry-run:
+
+```powershell
+.\scripts\release.bat -Changes "Test: preview" -DryRun
+```
+
+This updates:
+- `SecurityHelperLibrary/SecurityHelperLibrary.csproj` (`<Version>`)
+- `CHANGELOG.md` (new version section)
+
+For process rules and branch naming conventions, see `BRANCHING_POLICY.md`.
+
 ## Migration Notes
 
 - If you maintain a custom `ISecurityHelper` implementation, add the new methods or switch to the provided `SecurityHelper` implementation.
