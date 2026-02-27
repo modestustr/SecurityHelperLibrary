@@ -1,4 +1,29 @@
-# Release Notes - SecurityHelperLibrary 2.0.0
+# Release Notes - SecurityHelperLibrary
+
+## 2.0.2 (2026-02-16)
+
+### Overview
+This release focuses on security hardening and release readiness without introducing public API breaking changes.
+
+### Highlights
+- Increased default PBKDF2 iteration count from `100000` to `210000`.
+- Strengthened default Argon2 parameters (`iterations=4`, `memoryKb=131072`, `degreeOfParallelism=4`).
+- Added guard validations for PBKDF2/Argon2 input parameters and minimum salt/hash lengths.
+- Improved Argon2 salt handling:
+  - Accepts Base64 salt input when provided.
+  - Preserves compatibility with short legacy salts by normalizing to secure length.
+- Release script improvements in `SecurityHelperLibrary/build.bat`:
+  - restore -> clean -> build -> test -> pack flow
+  - fail-fast on command errors
+  - package version read from project file
+
+### Compatibility
+- Multi-targeting remains `net481;net8.0`.
+- No intended breaking changes in public API signatures.
+
+---
+
+## 2.0.0
 
 ## Overview
 This release introduces major API additions and security improvements. Because the `ISecurityHelper` interface was extended with new public methods, this is a breaking change and the major version has been bumped to `2.0.0`.
