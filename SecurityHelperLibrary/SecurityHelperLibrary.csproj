@@ -10,11 +10,11 @@
 
     <!-- NuGet metadata -->
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>2.0.0</Version>
+    <Version>2.0.2</Version>
     <Authors>Uysal YILMAZ</Authors>
     <Company>ModestusNet</Company>
     <PackageId>SecurityHelperLibrary</PackageId>
-    <Description>Added ISecurityHelper interface (DI support), Argon2id, HMAC, and AES-GCM. Check the Migration Guide in the repository.</Description>
+    <Description>Security helper library with hardened PBKDF2/Argon2 defaults, DI-friendly interface, HMAC, and AES-GCM. Check the Migration Guide in the repository.</Description>
     <PackageTags>security;hash;pbkdf2;crypto;password</PackageTags>
     <RepositoryUrl>https://github.com/modestustr/SecurityHelperLibrary</RepositoryUrl>
     <PackageOutputPath>..\nuget-packages</PackageOutputPath>
@@ -30,6 +30,6 @@
     <!-- Optional icon -->
     <Content Include="Security.ico" />
     <None Include="README.md" Pack="true" PackagePath="" />
-    <PackageReference Include="Isopoh.Cryptography.Argon2" Version="1.3.0" />
+    <PackageReference Include="Isopoh.Cryptography.Argon2" Version="2.0.0" />
   </ItemGroup>
 </Project>
