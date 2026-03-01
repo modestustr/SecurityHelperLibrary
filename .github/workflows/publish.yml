@@ -34,6 +34,7 @@ jobs:
       run: |
         dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
           -c Release \
+          -f net8.0 \
           -o ./nupkg
     
     - name: Check for changes from previous version
