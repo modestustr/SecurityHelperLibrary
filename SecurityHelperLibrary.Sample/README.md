@@ -69,14 +69,18 @@ bool isValid = securityHelper.VerifyPasswordWithArgon2(plainPassword, storedHash
 - All inputs sanitized before database operations
 
 ### 5. **Rate Limiting with RateLimiter**
-- Each request to `/api/auth/register` and `/api/auth/login` runs through the `RateLimiter` helper from the library.
-- Register is limited to 3 attempts per minute per username, login to 5 attempts per minute, and violations respond with `429 Too Many Requests`.
-- You can reuse the `RateLimiter` class wherever you want to throttle sensitive endpoints without a full-blown middleware stack.
+- Each request to `/api/auth/register` and `/api/auth/login` runs through the `RateLimiter` helper from the library, but each limiter tracks both the normalized username/email and the client IP address.
+- Register attempts are limited to 3 hits per minute per username plus a higher per-IP ceiling, while logins are throttled to 5 attempts per user and 10 per IP per minute.
+- Because `RateLimiter` is thread-safe, you can instantiate shared limiters as shown in `AuthController` and guard multiple endpoints without wiring middleware.
 
 ### 6. **Derived Key Material (HKDF)**
-- After a successful login, the sample derives two 32-byte keys via `KeyDerivation.DeriveMultipleKeys` (SHA-256 + context) so you can demonstrate key separation for encryption vs. authentication.
+- After a successful login the sample now derives two 32-byte keys from a freshly generated session seed (not from any stored hash) via `KeyDerivation.DeriveMultipleKeys` so you can demonstrate key separation for encryption vs. authentication.
 - The `DerivedKeys` section in the JSON response shows the Base64-encoded results; treat them as illustrative placeholders for how you might bootstrap session tokens, AK/SK pairs, or key-wrapping secrets.
 - Because the sample references the main library project directly, this derivation automatically uses the latest HKDF fallback/`.NET 8` path without extra wiring.
+
+### 7. **Span-safe Password Handling**
+- The service now hashes passwords with `HashPasswordWithPBKDF2` using `password.AsSpan()` and a freshly generated salt (stored in the formatted hash string) to minimize the window where plaintext characters live in memory.
+- The same `ReadOnlySpan<char>` overload is used in `VerifyPasswordAsync` so that the verifier never materializes a second string copy.
 
 ## 🚀 Getting Started
 
@@ -213,28 +217,23 @@ curl -X POST https://localhost:5001/api/auth/login \
 
 ### UserService - Password Hashing
 ```csharp
-// From UserService.cs - Registration
-public async Task<(bool Success, string Message, User? User)> RegisterUserAsync(...)
+string salt = _securityHelper.GenerateSalt();
+byte[] saltBytes = Convert.FromBase64String(salt);
+string passwordHash = _securityHelper.HashPasswordWithPBKDF2(
+  password.AsSpan(),
+  saltBytes,
+  HashAlgorithmName.SHA256,
+  iterations: 100000,
+  hashLength: 32);
+Array.Clear(saltBytes, 0, saltBytes.Length);
+string storedHash = $"{HashAlgorithmName.SHA256.Name}|100000|{salt}|{passwordHash}";
+
+// Store user with hashed password
+var newUser = new User
 {
-    // Validate input
-    if (string.IsNullOrWhiteSpace(password))
-        return (false, "Password is required.", null);
-
-    // Hash password using Argon2 (from SecurityHelperLibrary)
-    string passwordHash = _securityHelper.HashPasswordWithArgon2(password);
-
-    // Store user with hashed password
-    var newUser = new User
-    {
-        Username = username,
-        PasswordHash = passwordHash  // Never the plaintext!
-    };
-
-    _dbContext.Users.Add(newUser);
-    await _dbContext.SaveChangesAsync();
-
-    return (true, "User registered successfully.", newUser);
-}
+  Username = username,
+  PasswordHash = storedHash
+};
 ```
 
 ### UserService - Password Verification
@@ -277,6 +276,11 @@ builder.Services.AddScoped<IUserService, UserService>();
 - The sample project references `SecurityHelperLibrary.csproj` directly, so rebuilding the solution already uses the latest library code. Keep the reference as-is and avoid copying DLLs manually.
 - Whenever the library ships a new feature (like `RateLimiter` or `KeyDerivation`), update this README and the controller/service logic to highlight it, just like we did for 2.1.2.
 - Consider adding a simple smoke test or integration script that runs `dotnet run` in the sample after major changes to ensure the walkthrough still works.
+
+## ⚠️ Security Warning: Registration Enumeration
+
+- The sample always returns `200 OK` with a generic message when an account already exists even though the underlying service differentiates username/email collisions. This prevents attackers from enumerating valid accounts via timing or error code differences.
+- In a production system you should still notify the real user (e.g., send an email) whenever someone resubmits their username or email so they can take action.
 
 ## 🗄️ Database Schema
 
@@ -417,6 +421,7 @@ curl -X POST https://localhost:5001/api/auth/login \
 - ✅ Async operations (no thread blocking)
 - ✅ Database initialization handled
 - ✅ HTTPS recommended for production
+- ✅ Generic registration responses to prevent user enumeration (sample logs the attempt internally)
 
 ## 📖 References
 

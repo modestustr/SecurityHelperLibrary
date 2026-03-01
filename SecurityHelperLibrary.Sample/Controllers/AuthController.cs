@@ -4,8 +4,8 @@ using SecurityHelperLibrary.Sample.Data;
 using SecurityHelperLibrary.Sample.Models;
 using SecurityHelperLibrary.Sample.Services;
 using System.Collections.Generic;
+using System.Net;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace SecurityHelperLibrary.Sample.Controllers;
 
@@ -48,8 +48,10 @@ public class AuthController : ControllerBase
     /// Logger for recording events and errors (optional, for debugging).
     /// </summary>
     private readonly ILogger<AuthController> _logger;
-    private static readonly RateLimiter RegisterRateLimiter = new(maxAttempts: 3, windowDurationSeconds: 60);
-    private static readonly RateLimiter LoginRateLimiter = new(maxAttempts: 5, windowDurationSeconds: 60);
+    private static readonly RateLimiter RegisterUsernameRateLimiter = new(maxAttempts: 3, windowDurationSeconds: 60);
+    private static readonly RateLimiter RegisterIpRateLimiter = new(maxAttempts: 20, windowDurationSeconds: 60);
+    private static readonly RateLimiter LoginUsernameRateLimiter = new(maxAttempts: 5, windowDurationSeconds: 60);
+    private static readonly RateLimiter LoginIpRateLimiter = new(maxAttempts: 10, windowDurationSeconds: 60);
 
     /// <summary>
     /// Constructor - dependencies are injected automatically by ASP.NET Core DI container.
@@ -119,8 +121,8 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
         // INPUT VALIDATION: Check for null request
@@ -133,8 +135,18 @@ public class AuthController : ControllerBase
             });
         }
 
-        string registerIdentifier = request.Username.Trim().ToLowerInvariant();
-        if (!RegisterRateLimiter.IsAllowed(registerIdentifier))
+        if (string.IsNullOrWhiteSpace(request.Username))
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "Username is required."
+            });
+        }
+
+        string registerIdentifier = NormalizeIdentifier(request.Username);
+        string registerIp = GetClientIp();
+        if (!RegisterUsernameRateLimiter.IsAllowed(registerIdentifier) || !RegisterIpRateLimiter.IsAllowed(registerIp))
         {
             return TooManyAttempts("Too many registration attempts. Please wait a minute before trying again.");
         }
@@ -149,12 +161,11 @@ public class AuthController : ControllerBase
 
         if (!success)
         {
-            // Return 409 Conflict if user already exists, else 400 Bad Request
-            int statusCode = message.Contains("already") ? StatusCodes.Status409Conflict : StatusCodes.Status400BadRequest;
-            return StatusCode(statusCode, new AuthResponse
+            _logger.LogWarning("Registration attempt for {Username} blocked: {Message}", request.Username, message);
+            return Ok(new AuthResponse
             {
                 Success = false,
-                Message = message
+                Message = "If an account already exists we have recorded the attempt and will notify the owner."
             });
         }
 
@@ -245,8 +256,18 @@ public class AuthController : ControllerBase
             });
         }
 
-        string loginIdentifier = request.UsernameOrEmail.Trim().ToLowerInvariant();
-        if (!LoginRateLimiter.IsAllowed(loginIdentifier))
+        if (string.IsNullOrWhiteSpace(request.UsernameOrEmail) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "Username/email and password are required."
+            });
+        }
+
+        string loginIdentifier = NormalizeIdentifier(request.UsernameOrEmail);
+        string clientIp = GetClientIp();
+        if (!LoginUsernameRateLimiter.IsAllowed(loginIdentifier) || !LoginIpRateLimiter.IsAllowed(clientIp))
         {
             return TooManyAttempts("Too many login attempts. Try again in a minute.");
         }
@@ -259,7 +280,7 @@ public class AuthController : ControllerBase
 
         if (!success)
         {
-            // Return 401 Unauthorized on failed authentication
+            _logger.LogWarning("Failed login for {Identifier} from {Ip}: {Message}", loginIdentifier, clientIp, message);
             return Unauthorized(new AuthResponse
             {
                 Success = false,
@@ -267,16 +288,26 @@ public class AuthController : ControllerBase
             });
         }
 
-        // MAP TO DTO: Convert User entity to UserDto (excludes password hash)
         var userDto = MapToUserDto(user!);
 
-        // RETURN: 200 OK with user data
+        byte[] sessionSeed = new byte[32];
+        RandomNumberGenerator.Fill(sessionSeed);
+        IEnumerable<DerivedKeyDto> derivedKeys;
+        try
+        {
+            derivedKeys = BuildDerivedKeys(sessionSeed, "session");
+        }
+        finally
+        {
+            Array.Clear(sessionSeed, 0, sessionSeed.Length);
+        }
+
         return Ok(new AuthResponse
         {
             Success = true,
             Message = message,
             User = userDto,
-            DerivedKeys = BuildDerivedKeys(user, "session")
+            DerivedKeys = derivedKeys
         });
     }
 
@@ -383,12 +414,11 @@ public class AuthController : ControllerBase
         };
     }
 
-    private static IEnumerable<DerivedKeyDto> BuildDerivedKeys(User user, string context)
+    private static IEnumerable<DerivedKeyDto> BuildDerivedKeys(byte[] masterSecret, string context)
     {
-        byte[] seed = Encoding.UTF8.GetBytes(user.PasswordHash);
         byte[][] keys = KeyDerivation.DeriveMultipleKeys(
             HashAlgorithmName.SHA256,
-            seed,
+            masterSecret,
             keyCount: 2,
             keyLength: 32,
             context: context);
@@ -406,6 +436,32 @@ public class AuthController : ControllerBase
                 Base64Key = Convert.ToBase64String(keys[1])
             }
         };
+    }
+
+    private static string NormalizeIdentifier(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Trim().ToLowerInvariant();
+    }
+
+    private string GetClientIp()
+    {
+        var remoteIp = HttpContext?.Connection?.RemoteIpAddress;
+        if (remoteIp == null)
+        {
+            return "unknown";
+        }
+
+        if (remoteIp.IsIPv4MappedToIPv6)
+        {
+            return remoteIp.MapToIPv4().ToString() ?? "unknown";
+        }
+
+        return remoteIp.ToString() ?? "unknown";
     }
 
     private ActionResult<AuthResponse> TooManyAttempts(string message)
