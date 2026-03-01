@@ -1,6 +1,9 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [2.0.3] - 2026-03-01
+- Fix: harden PBKDF2 verification with dynamic hash length,Fix: tighten AES-GCM decrypt validation for nonce/tag sizes,Security: clear Argon2 password bytes after hashing,Chore: simplify async wrappers and improve robustness
 
 ## [2.0.2] - 2026-02-16
 - Security: Increase default PBKDF2 iterations from `100000` to `210000`.
@@ -19,3 +22,4 @@ All notable changes to this project will be documented in this file.
 
 Notes:
 - These changes are backward-compatible and focused on cross-target compatibility and warnings cleanup. No public API breaking changes are intended.
+
