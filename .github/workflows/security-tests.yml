@@ -34,6 +34,7 @@ jobs:
         mkdir -p TestResults
         dotnet test SecurityHelperLibrary.Tests/SecurityHelperLibrary.Tests.csproj \
           --filter "Category=Pentest" \
+          -f net8.0 \
           -c Release \
           --no-restore \
           --results-directory TestResults \
