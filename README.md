@@ -1,15 +1,17 @@
 # SecurityHelperLibrary
 
-Version: 2.0.2
+Version: 2.1.0 | [![Security Pentest Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml) | [![Build & Test Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml)
 
-SecurityHelperLibrary is a small, focused cryptographic helper library that provides hashing, PBKDF2 and Argon2 password hashing, HMAC computation, and AES-GCM authenticated encryption. The latest release (2.0.2) focuses on security hardening and release stability.
+SecurityHelperLibrary is a production-grade cryptographic helper library providing secure password hashing (PBKDF2, Argon2id), HMAC computation, and AES-GCM authenticated encryption. **v2.1.0** brings enterprise-grade security hardening with automated pentest enforcement and comprehensive CI/CD governance.
 
-## Latest Changes (v2.0.2)
+## Latest Changes (v2.1.0)
 
-- Increased default PBKDF2 iterations from `100000` to `210000`.
-- Strengthened default Argon2 settings (`iterations=4`, `memoryKb=131072`, `degreeOfParallelism=4`).
-- Added stronger input guards for PBKDF2/Argon2 and minimum salt/hash lengths.
-- Improved Argon2 salt handling for Base64 and short legacy salt values.
+- **Argon2 Hardening**: Increased minimum iterations (2→3) and memory (32MB→64MB) = 128× attack cost
+- **Secure Memory**: New `SecureZeroMemory()` method with GCHandle pinning for sensitive data cleanup
+- **Salt Fortress**: Eliminated UTF-8 fallback, enforcing Base64-only format for strict validation
+- **Pentest Enforcement**: 13-test security suite validates 10 attack vectors on every commit
+- **CI/CD Governance**: GitHub Actions workflows (security-tests, build, quality, publish) with auto-deploy to NuGet
+- **Branch Protection**: Master branch requires pentest + build pass before merge
 
 ### Also Included in Recent Releases
 
