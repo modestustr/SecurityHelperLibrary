@@ -47,6 +47,7 @@ jobs:
         dotnet test SecurityHelperLibrary.Tests/SecurityHelperLibrary.Tests.csproj \
           -c Release \
           --no-restore \
+          -f ${{ matrix.dotnet-version }} \
           --logger "console;verbosity=normal" \
           --logger "trx;LogFileName=unit-test-results.trx" \
           --filter "Category!=Pentest" \

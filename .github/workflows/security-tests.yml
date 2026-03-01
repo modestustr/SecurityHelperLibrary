@@ -35,6 +35,7 @@ jobs:
           --filter "Category=Pentest" \
           -c Release \
           --no-restore \
+          -f ${{ matrix.dotnet-version }} \
           --logger "console;verbosity=detailed" \
           --logger "trx;LogFileName=pentest-results.trx"
     
