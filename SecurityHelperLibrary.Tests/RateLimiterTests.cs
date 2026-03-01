@@ -90,6 +90,15 @@ namespace SecurityHelperLibrary.Tests
 
         [Fact]
         [Trait("Category", "RateLimiting")]
+        public void RateLimiter_Constructor_ThrowsOnInvalidInputs()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => new RateLimiter(maxAttempts: -5, windowDurationSeconds: 60, maxTrackedIdentifiers: 100));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new RateLimiter(maxAttempts: 5, windowDurationSeconds: 0, maxTrackedIdentifiers: 100));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new RateLimiter(maxAttempts: 5, windowDurationSeconds: 60, maxTrackedIdentifiers: -100));
+        }
+
+        [Fact]
+        [Trait("Category", "RateLimiting")]
         public void RateLimiter_ClearAll()
         {
             var limiter = new RateLimiter(maxAttempts: 1, windowDurationSeconds: 10);
@@ -103,6 +112,21 @@ namespace SecurityHelperLibrary.Tests
             limiter.ClearAll();
 
             Assert.Equal(0, limiter.GetTrackedIdentifierCount());
+            Assert.True(limiter.IsAllowed("user1"));
+        }
+
+        [Fact]
+        [Trait("Category", "RateLimiting")]
+        public async Task RateLimiter_ClearsHistoryAfterWindow()
+        {
+            var limiter = new RateLimiter(maxAttempts: 1, windowDurationSeconds: 1);
+
+            Assert.True(limiter.IsAllowed("user1"));
+            Assert.False(limiter.IsAllowed("user1"));
+
+            await Task.Delay(1250);
+
+            Assert.Equal(1, limiter.GetRemainingAttempts("user1"));
             Assert.True(limiter.IsAllowed("user1"));
         }
 
