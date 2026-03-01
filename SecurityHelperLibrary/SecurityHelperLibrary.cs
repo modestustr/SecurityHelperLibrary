@@ -513,8 +513,6 @@ namespace SecurityHelperLibrary
                     throw new FormatException("Nonce component cannot be empty.");
                 if (string.IsNullOrEmpty(parts[1]))
                     throw new FormatException("Tag component cannot be empty.");
-                if (string.IsNullOrEmpty(parts[2]))
-                    throw new FormatException("Ciphertext component cannot be empty.");
 
                 try
                 {
@@ -536,7 +534,9 @@ namespace SecurityHelperLibrary
 
                 try
                 {
-                    cipherBytes = Convert.FromBase64String(parts[2]);
+                    cipherBytes = string.IsNullOrEmpty(parts[2])
+                        ? Array.Empty<byte>()
+                        : Convert.FromBase64String(parts[2]);
                 }
                 catch (FormatException)
                 {

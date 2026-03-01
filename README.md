@@ -1,10 +1,18 @@
 # SecurityHelperLibrary
 
-Version: 2.1.0 | [![Security Pentest Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml) | [![Build & Test Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml)
+Version: 2.1.1 | [![Security Pentest Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml) | [![Build & Test Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml)
 
-SecurityHelperLibrary is a production-grade cryptographic helper library providing secure password hashing (PBKDF2, Argon2id), HMAC computation, and AES-GCM authenticated encryption. **v2.1.0** brings enterprise-grade security hardening with automated pentest enforcement and comprehensive CI/CD governance.
+SecurityHelperLibrary is a production-grade cryptographic helper library providing secure password hashing (PBKDF2, Argon2id), HMAC computation, and AES-GCM authenticated encryption. **v2.1.1** adds reliability fixes for rate limiting, AES-GCM edge cases, and release automation while preserving multi-target support (`net481` + `net8.0`).
 
-## Latest Changes (v2.1.0)
+## Latest Changes (v2.1.1)
+
+- **RateLimiter Reliability**: Fixed deterministic limit behavior and thread-safety under parallel access.
+- **AES-GCM Round-Trip Fix**: Correct handling for empty plaintext encryption/decryption scenarios.
+- **Multi-Target Packaging**: CI packaging flow preserves `net481` + `net8.0` support (no framework lockout).
+- **Publish Stability**: Deduplicated release trigger path and added safe duplicate-push handling.
+- **Release Permissions**: Added explicit workflow permissions required for GitHub Release creation.
+
+## Security Foundation (v2.1.0)
 
 - **Argon2 Hardening**: Increased minimum iterations (2→3) and memory (32MB→64MB) = 128× attack cost
 - **Secure Memory**: New `SecureZeroMemory()` method with GCHandle pinning for sensitive data cleanup
@@ -46,10 +54,10 @@ New or changed public surface (high level):
 
 ## Quick Start
 
-Install from NuGet (when published):
+Install from NuGet:
 
 ```bash
-dotnet add package SecurityHelperLibrary --version 2.0.2
+dotnet add package SecurityHelperLibrary --version 2.1.1
 ```
 
 Basic usage (example):
@@ -157,4 +165,4 @@ See `CHANGELOG.md` and `RELEASE_NOTES.md` for version-by-version details.
 
 ---
 
-Last updated: February 16, 2026
+Last updated: March 1, 2026

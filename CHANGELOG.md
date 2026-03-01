@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.1] - 2026-03-01
+- Fix: Make `RateLimiter.IsAllowed()` deterministic and thread-safe under concurrent requests.
+- Fix: Restore AES-GCM empty-plaintext round-trip compatibility in `DecryptStringGCM()`.
+- CI: Stabilize packaging on GitHub Actions for multi-target output (`net481` + `net8.0`).
+- CI: Prevent duplicate publish race conditions and tolerate already-published packages via `--skip-duplicate`.
+- CI: Add publish workflow permission (`contents: write`) required for GitHub Release creation.
+- Docs: Update README and release notes to reflect `2.1.1` changes and supported frameworks.
+
 ## [2.1.0] - 2026-03-01
 - Security: Strengthen Argon2 minimum parameters — `MinArgon2Iterations: 2→3`, `MinArgon2MemoryKb: 32768→65536` (32MB→64MB) to increase resistance against hardware-accelerated dictionary attacks.
 - Security: Eliminate `GetSaltBytes()` UTF-8 fallback — enforce Base64-only salt format to prevent format-confusion bypass attacks.

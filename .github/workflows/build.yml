@@ -24,7 +24,7 @@ jobs:
     
     strategy:
       matrix:
-        dotnet-version: ['6.0.x', '8.0.x']
+        dotnet-version: ['8.0.x']
     
     steps:
     - uses: actions/checkout@v4
@@ -108,7 +108,10 @@ jobs:
 
   package:
     name: Package & Version Check
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     if: github.event_name == 'push'
     
     steps:
@@ -118,11 +121,17 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
+
+    - name: Build target frameworks
+      run: |
+        dotnet build SecurityHelperLibrary/SecurityHelperLibrary.csproj -c Release -f net481
+        dotnet build SecurityHelperLibrary/SecurityHelperLibrary.csproj -c Release -f net8.0
     
     - name: Pack NuGet Package
       run: |
         dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
           -c Release \
+          --no-build \
           -o ./nupkg
     
     - name: Upload NuGet Package

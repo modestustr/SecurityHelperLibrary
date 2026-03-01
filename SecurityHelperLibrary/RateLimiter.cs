@@ -47,26 +47,17 @@ namespace SecurityHelperLibrary
             PeriodicCleanup();
             var now = DateTime.UtcNow;
 
-            _attemptHistory.AddOrUpdate(
-                identifier,
-                key => new List<DateTime> { now },
-                (key, attempts) =>
-                {
-                    // Remove attempts outside the window
-                    attempts.RemoveAll(t => now - t > _windowDuration);
+            var attempts = _attemptHistory.GetOrAdd(identifier, _ => new List<DateTime>());
+            lock (attempts)
+            {
+                attempts.RemoveAll(t => now - t > _windowDuration);
 
-                    // Check if limit exceeded BEFORE adding new attempt
-                    if (attempts.Count >= _maxAttempts)
-                        return attempts; // Don't add, return unchanged to trigger false return
+                if (attempts.Count >= _maxAttempts)
+                    return false;
 
-                    // Add current attempt
-                    attempts.Add(now);
-                    return attempts;
-                });
-
-            // Get current attempt count to return result
-            var currentAttempts = _attemptHistory[identifier];
-            return currentAttempts.Count <= _maxAttempts;
+                attempts.Add(now);
+                return true;
+            }
         }
 
         /// <summary>
@@ -82,9 +73,13 @@ namespace SecurityHelperLibrary
             if (!_attemptHistory.TryGetValue(identifier, out var attempts))
                 return _maxAttempts;
 
-            var validAttempts = attempts
-                .Where(t => DateTime.UtcNow - t <= _windowDuration)
-                .ToList();
+            List<DateTime> validAttempts;
+            lock (attempts)
+            {
+                validAttempts = attempts
+                    .Where(t => DateTime.UtcNow - t <= _windowDuration)
+                    .ToList();
+            }
 
             return Math.Max(0, _maxAttempts - validAttempts.Count);
         }
@@ -128,9 +123,12 @@ namespace SecurityHelperLibrary
 
                 foreach (var kvp in _attemptHistory)
                 {
-                    kvp.Value.RemoveAll(t => now - t > _windowDuration);
-                    if (kvp.Value.Count == 0)
-                        keysToClean.Add(kvp.Key);
+                    lock (kvp.Value)
+                    {
+                        kvp.Value.RemoveAll(t => now - t > _windowDuration);
+                        if (kvp.Value.Count == 0)
+                            keysToClean.Add(kvp.Key);
+                    }
                 }
 
                 foreach (var key in keysToClean)

@@ -2,15 +2,21 @@ name: Publish NuGet Package
 
 on:
   workflow_run:
-    workflows: ['Security Pentest Suite', 'Build & Test Suite']
+    workflows: ['Build & Test Suite']
     branches: [ master ]
     types: [ completed ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   publish:
     name: Publish to NuGet.org
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
     
     steps:
@@ -22,6 +28,11 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
+
+    - name: Build target frameworks
+      run: |
+        dotnet build SecurityHelperLibrary/SecurityHelperLibrary.csproj -c Release -f net481
+        dotnet build SecurityHelperLibrary/SecurityHelperLibrary.csproj -c Release -f net8.0
     
     - name: Extract Version
       id: version
@@ -34,6 +45,7 @@ jobs:
       run: |
         dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
           -c Release \
+          --no-build \
           -o ./nupkg
     
     - name: Check for changes from previous version
@@ -48,8 +60,8 @@ jobs:
       run: |
         dotnet nuget push ./nupkg/SecurityHelperLibrary.${{ steps.version.outputs.version }}.nupkg \
           -k ${{ secrets.NUGET_API_KEY }} \
-          -s https://api.n
-      continue-on-error: true
+          -s https://api.nuget.org/v3/index.json \
+          --skip-duplicate
     
     - name: Create GitHub Release
       if: steps.version.outputs.version != ''
