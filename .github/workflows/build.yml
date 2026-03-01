@@ -123,7 +123,7 @@ jobs:
       run: |
         dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
           -c Release \
-          -p:TargetFramework=net8.0 \
+          -p:TargetFrameworks=net8.0 \
           -o ./nupkg
     
     - name: Upload NuGet Package
