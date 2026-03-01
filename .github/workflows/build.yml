@@ -44,10 +44,11 @@ jobs:
     
     - name: Run Unit Tests
       run: |
+        mkdir -p TestResults
         dotnet test SecurityHelperLibrary.Tests/SecurityHelperLibrary.Tests.csproj \
           -c Release \
           --no-restore \
-          -f ${{ matrix.dotnet-version }} \
+          --results-directory TestResults \
           --logger "console;verbosity=normal" \
           --logger "trx;LogFileName=unit-test-results.trx" \
           --filter "Category!=Pentest" \
@@ -67,7 +68,7 @@ jobs:
       if: always()
       with:
         name: unit-test-results-${{ matrix.dotnet-version }}
-        path: "**/unit-test-results.trx"
+        path: "TestResults/unit-test-results.trx"
 
   quality:
     name: Code Quality Checks
