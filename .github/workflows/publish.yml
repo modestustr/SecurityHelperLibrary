@@ -10,7 +10,10 @@ on:
 jobs:
   publish:
     name: Publish to NuGet.org
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
     if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
     
     steps:
@@ -34,7 +37,6 @@ jobs:
       run: |
         dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
           -c Release \
-          -p:TargetFrameworks=net8.0 \
           -o ./nupkg
     
     - name: Check for changes from previous version
