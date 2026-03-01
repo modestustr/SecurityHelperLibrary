@@ -10,7 +10,7 @@
 
     <!-- NuGet metadata -->
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>2.0.3</Version>
+    <Version>2.1.0</Version>
     <Authors>Uysal YILMAZ</Authors>
     <Company>ModestusNet</Company>
     <PackageId>SecurityHelperLibrary</PackageId>

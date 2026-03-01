@@ -1,0 +1,72 @@
+name: Security Pentest Suite
+
+on:
+  push:
+    branches: [ master, development ]
+  pull_request:
+    branches: [ master, development ]
+
+jobs:
+  pentest:
+    name: Run Security Pentest Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        dotnet-version: ['6.0.x', '8.0.x']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build Release
+      run: dotnet build -c Release --no-restore
+    
+    - name: Run Pentest Suite
+      run: |
+        dotnet test SecurityHelperLibrary.Tests/SecurityHelperLibrary.Tests.csproj \
+          --filter "Category=Pentest" \
+          -c Release \
+          --no-restore \
+          --logger "console;verbosity=detailed" \
+          --logger "trx;LogFileName=pentest-results.trx"
+    
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: pentest-results-${{ matrix.dotnet-version }}
+        path: "**/pentest-results.trx"
+    
+    - name: Test Report Summary
+      if: always()
+      run: |
+        echo "## Security Pentest Suite Results 🔒" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Framework**: .NET ${{ matrix.dotnet-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  security-summary:
+    name: Security Validation Complete
+    runs-on: ubuntu-latest
+    needs: pentest
+    if: always()
+    
+    steps:
+    - name: Security Check Status
+      run: |
+        if [ "${{ needs.pentest.result }}" = "success" ]; then
+          echo "✅ All security pentest tests passed"
+          exit 0
+        else
+          echo "❌ Security pentest tests failed"
+          exit 1
+        fi

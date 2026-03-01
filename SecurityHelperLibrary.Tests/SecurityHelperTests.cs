@@ -28,7 +28,7 @@ namespace SecurityHelperLibrary.Tests
             string salt = _securityHelper.GenerateSalt();
 
             // Act
-            string result = _securityHelper.ComputeHash(input, salt, HashAlgorithmName.SHA256);
+            string result = _securityHelper.ComputeGeneralPurposeHash(input, salt, HashAlgorithmName.SHA256);
 
             // Assert
             Assert.NotNull(result);
@@ -50,8 +50,8 @@ namespace SecurityHelperLibrary.Tests
             var algorithm = new HashAlgorithmName(algorithmName);
 
             // Act
-            string hash1 = _securityHelper.ComputeHash(input, salt, algorithm);
-            string hash2 = _securityHelper.ComputeHash(input, salt, algorithm);
+            string hash1 = _securityHelper.ComputeGeneralPurposeHash(input, salt, algorithm);
+            string hash2 = _securityHelper.ComputeGeneralPurposeHash(input, salt, algorithm);
 
             // Assert - Same input should produce same hash
             Assert.Equal(hash1, hash2);
@@ -66,8 +66,8 @@ namespace SecurityHelperLibrary.Tests
             string salt2 = _securityHelper.GenerateSalt();
 
             // Act
-            string hash1 = _securityHelper.ComputeHash(input, salt1, HashAlgorithmName.SHA256);
-            string hash2 = _securityHelper.ComputeHash(input, salt2, HashAlgorithmName.SHA256);
+            string hash1 = _securityHelper.ComputeGeneralPurposeHash(input, salt1, HashAlgorithmName.SHA256);
+            string hash2 = _securityHelper.ComputeGeneralPurposeHash(input, salt2, HashAlgorithmName.SHA256);
 
             // Assert
             Assert.NotEqual(hash1, hash2);
@@ -194,7 +194,7 @@ namespace SecurityHelperLibrary.Tests
             // Arrange
             string input = "TestPassword";
             string salt = _securityHelper.GenerateSalt();
-            string hash = _securityHelper.ComputeHash(input, salt, HashAlgorithmName.SHA256);
+            string hash = _securityHelper.ComputeGeneralPurposeHash(input, salt, HashAlgorithmName.SHA256);
 
             // Act
             bool result = _securityHelper.VerifyHash(input, salt, hash, HashAlgorithmName.SHA256);
@@ -210,7 +210,7 @@ namespace SecurityHelperLibrary.Tests
             string input = "TestPassword";
             string wrongInput = "WrongPassword";
             string salt = _securityHelper.GenerateSalt();
-            string hash = _securityHelper.ComputeHash(input, salt, HashAlgorithmName.SHA256);
+            string hash = _securityHelper.ComputeGeneralPurposeHash(input, salt, HashAlgorithmName.SHA256);
 
             // Act
             bool result = _securityHelper.VerifyHash(wrongInput, salt, hash, HashAlgorithmName.SHA256);
@@ -226,7 +226,7 @@ namespace SecurityHelperLibrary.Tests
             string input = "TestPassword";
             string salt1 = _securityHelper.GenerateSalt();
             string salt2 = _securityHelper.GenerateSalt();
-            string hash = _securityHelper.ComputeHash(input, salt1, HashAlgorithmName.SHA256);
+            string hash = _securityHelper.ComputeGeneralPurposeHash(input, salt1, HashAlgorithmName.SHA256);
 
             // Act
             bool result = _securityHelper.VerifyHash(input, salt2, hash, HashAlgorithmName.SHA256);
@@ -606,7 +606,7 @@ namespace SecurityHelperLibrary.Tests
         {
             // Arrange
             string password = "MySecurePassword";
-            string salt = "SomeSalt";
+            string salt = _securityHelper.GenerateSalt();
 
             // Act
             string hash = _securityHelper.HashPasswordWithArgon2(password, salt);
@@ -623,7 +623,7 @@ namespace SecurityHelperLibrary.Tests
         {
             // Arrange
             string password = "MySecurePassword";
-            string salt = "SomeSalt";
+            string salt = _securityHelper.GenerateSalt();
 
             // Act
             string hash1 = _securityHelper.HashPasswordWithArgon2(password, salt);
@@ -639,7 +639,7 @@ namespace SecurityHelperLibrary.Tests
             // Arrange
             string password1 = "Password1";
             string password2 = "Password2";
-            string salt = "SomeSalt";
+            string salt = _securityHelper.GenerateSalt();
 
             // Act
             string hash1 = _securityHelper.HashPasswordWithArgon2(password1, salt);
@@ -647,58 +647,6 @@ namespace SecurityHelperLibrary.Tests
 
             // Assert
             Assert.NotEqual(hash1, hash2);
-        }
-
-        #endregion
-
-        #region Async Methods Tests
-
-        [Fact]
-        public async void HashPasswordWithPBKDF2Async_ProducesValidHash()
-        {
-            // Arrange
-            string password = "MySecurePassword";
-            byte[] salt = Convert.FromBase64String(_securityHelper.GenerateSalt());
-
-            // Act
-            string hash = await _securityHelper.HashPasswordWithPBKDF2Async(password, salt, HashAlgorithmName.SHA256);
-
-            // Assert
-            Assert.NotNull(hash);
-            byte[] decodedHash = Convert.FromBase64String(hash);
-            Assert.Equal(32, decodedHash.Length);
-        }
-
-        [Fact]
-        public async void ComputeHMACAsync_ProducesValidResult()
-        {
-            // Arrange
-            string input = "TestData";
-            string key = "SecretKey";
-
-            // Act
-            string hmac = await _securityHelper.ComputeHMACAsync(input, key, HashAlgorithmName.SHA256);
-
-            // Assert
-            Assert.NotNull(hmac);
-            byte[] decodedHmac = Convert.FromBase64String(hmac);
-            Assert.NotEmpty(decodedHmac);
-        }
-
-        [Fact]
-        public async void HashPasswordWithArgon2Async_ProducesValidHash()
-        {
-            // Arrange
-            string password = "MySecurePassword";
-            string salt = "SomeSalt";
-
-            // Act
-            string hash = await _securityHelper.HashPasswordWithArgon2Async(password, salt);
-
-            // Assert
-            Assert.NotNull(hash);
-            byte[] decodedHash = Convert.FromBase64String(hash);
-            Assert.NotEmpty(decodedHash);
         }
 
         #endregion
@@ -714,7 +662,7 @@ namespace SecurityHelperLibrary.Tests
             byte[] salt = Convert.FromBase64String(_securityHelper.GenerateSalt());
 
             // Act
-            string hash = _securityHelper.HashPasswordWithPBKDF2Span(password, salt, HashAlgorithmName.SHA256);
+            string hash = _securityHelper.HashPasswordWithPBKDF2(password, salt, HashAlgorithmName.SHA256);
 
             // Assert
             Assert.NotNull(hash);
@@ -731,8 +679,8 @@ namespace SecurityHelperLibrary.Tests
             byte[] salt = Convert.FromBase64String(_securityHelper.GenerateSalt());
 
             // Act
-            string hash1 = _securityHelper.HashPasswordWithPBKDF2Span(password, salt, HashAlgorithmName.SHA256);
-            string hash2 = _securityHelper.HashPasswordWithPBKDF2Span(password, salt, HashAlgorithmName.SHA256);
+            string hash1 = _securityHelper.HashPasswordWithPBKDF2(password, salt, HashAlgorithmName.SHA256);
+            string hash2 = _securityHelper.HashPasswordWithPBKDF2(password, salt, HashAlgorithmName.SHA256);
 
             // Assert
             Assert.Equal(hash1, hash2);
@@ -747,8 +695,10 @@ namespace SecurityHelperLibrary.Tests
             byte[] salt = Convert.FromBase64String(_securityHelper.GenerateSalt());
 
             // Act
+#pragma warning disable CS0618
             string hashFromString = _securityHelper.HashPasswordWithPBKDF2(passwordStr, salt, HashAlgorithmName.SHA256);
-            string hashFromSpan = _securityHelper.HashPasswordWithPBKDF2Span(passwordSpan, salt, HashAlgorithmName.SHA256);
+#pragma warning restore CS0618
+            string hashFromSpan = _securityHelper.HashPasswordWithPBKDF2(passwordSpan, salt, HashAlgorithmName.SHA256);
 
             // Assert
             Assert.Equal(hashFromString, hashFromSpan);
@@ -763,7 +713,7 @@ namespace SecurityHelperLibrary.Tests
             string storedHash = _securityHelper.HashPasswordWithPBKDF2(password, out string _, HashAlgorithmName.SHA256);
 
             // Act
-            bool result = _securityHelper.VerifyPasswordWithPBKDF2Span(passwordSpan, storedHash);
+            bool result = _securityHelper.VerifyPasswordWithPBKDF2(passwordSpan, storedHash);
 
             // Assert
             Assert.True(result);
@@ -778,7 +728,7 @@ namespace SecurityHelperLibrary.Tests
             string storedHash = _securityHelper.HashPasswordWithPBKDF2(password, out string _, HashAlgorithmName.SHA256);
 
             // Act
-            bool result = _securityHelper.VerifyPasswordWithPBKDF2Span(wrongPassword, storedHash);
+            bool result = _securityHelper.VerifyPasswordWithPBKDF2(wrongPassword, storedHash);
 
             // Assert
             Assert.False(result);
@@ -794,7 +744,7 @@ namespace SecurityHelperLibrary.Tests
 
             // Act
             bool resultFromString = _securityHelper.VerifyPasswordWithPBKDF2(password, storedHash);
-            bool resultFromSpan = _securityHelper.VerifyPasswordWithPBKDF2Span(passwordSpan, storedHash);
+            bool resultFromSpan = _securityHelper.VerifyPasswordWithPBKDF2(passwordSpan, storedHash);
 
             // Assert
             Assert.Equal(resultFromString, resultFromSpan);
