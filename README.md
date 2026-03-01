@@ -1,16 +1,51 @@
 # SecurityHelperLibrary
 
-Version: 2.1.1 | [![Security Pentest Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml) | [![Build & Test Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml)
+[![NuGet Version](https://img.shields.io/nuget/v/SecurityHelperLibrary.svg)](https://www.nuget.org/packages/SecurityHelperLibrary/)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/SecurityHelperLibrary.svg)](https://www.nuget.org/packages/SecurityHelperLibrary/)
+[![Build & Test Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/build.yml)
+[![Security Pentest Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
+
+Version: 2.1.1
 
 SecurityHelperLibrary is a production-grade cryptographic helper library providing secure password hashing (PBKDF2, Argon2id), HMAC computation, and AES-GCM authenticated encryption. **v2.1.1** adds reliability fixes for rate limiting, AES-GCM edge cases, and release automation while preserving multi-target support (`net481` + `net8.0`).
 
-## Latest Changes (v2.1.1)
+## Why This Library?
 
+- **Timing attack resistant** password/hash verification with fixed-time comparison patterns.
+- **Memory-safety focused APIs** including `ReadOnlySpan<char>` support and explicit sensitive-data clearing helpers.
+- **Modern + legacy support** in one package (`net8.0` and `net481`).
+- **Security-gated release pipeline** where build + pentest checks gate publish workflow.
+
+## 30-Second Quick Start
+
+### 1) Hash password
+
+```csharp
+var helper = new SecurityHelper();
+var storedHash = helper.HashPasswordWithPBKDF2("MyPassword", out var salt, HashAlgorithmName.SHA256);
+```
+
+### 2) Verify password
+
+```csharp
+var helper = new SecurityHelper();
+var isValid = helper.VerifyPasswordWithPBKDF2("MyPassword", storedHash);
+```
+
+## What's Changed (v2.1.1)
+
+### Fixed
 - **RateLimiter Reliability**: Fixed deterministic limit behavior and thread-safety under parallel access.
-- **AES-GCM Round-Trip Fix**: Correct handling for empty plaintext encryption/decryption scenarios.
-- **Multi-Target Packaging**: CI packaging flow preserves `net481` + `net8.0` support (no framework lockout).
+- **AES-GCM Round-Trip**: Correct handling for empty plaintext encryption/decryption scenarios.
+
+### CI/CD
+- **Multi-Target Packaging**: CI packaging preserves `net481` + `net8.0` support (no framework lockout).
 - **Publish Stability**: Deduplicated release trigger path and added safe duplicate-push handling.
 - **Release Permissions**: Added explicit workflow permissions required for GitHub Release creation.
+
+### Documentation
+- README, CHANGELOG, and RELEASE_NOTES were aligned for `2.1.1` so NuGet/GitHub release pages reflect the same update scope.
 
 ## Security Foundation (v2.1.0)
 

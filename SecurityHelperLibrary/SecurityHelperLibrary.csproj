@@ -15,7 +15,7 @@
     <Company>ModestusNet</Company>
     <PackageId>SecurityHelperLibrary</PackageId>
     <Description>Security helper library with hardened PBKDF2/Argon2 defaults, DI-friendly interface, HMAC, and AES-GCM. Check the Migration Guide in the repository.</Description>
-    <PackageTags>security;hash;pbkdf2;crypto;password</PackageTags>
+    <PackageTags>cryptography;security;password-hashing;argon2;pbkdf2;aes-gcm;pentest</PackageTags>
     <RepositoryUrl>https://github.com/modestustr/SecurityHelperLibrary</RepositoryUrl>
     <PackageOutputPath>..\nuget-packages</PackageOutputPath>
     <PackageReadmeFile>README.md</PackageReadmeFile>
