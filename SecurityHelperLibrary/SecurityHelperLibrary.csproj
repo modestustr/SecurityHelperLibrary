@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- Multi-targeting: .NET Framework 4.8.1 ve .NET 8 -->
     <TargetFrameworks>net481;net8.0</TargetFrameworks>
@@ -10,7 +10,7 @@
 
     <!-- NuGet metadata -->
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>2.0.2</Version>
+    <Version>2.0.3</Version>
     <Authors>Uysal YILMAZ</Authors>
     <Company>ModestusNet</Company>
     <PackageId>SecurityHelperLibrary</PackageId>
@@ -33,3 +33,4 @@
     <PackageReference Include="Isopoh.Cryptography.Argon2" Version="2.0.0" />
   </ItemGroup>
 </Project>
+

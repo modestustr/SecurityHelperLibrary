@@ -139,5 +139,5 @@ Write-Host ''
 Write-Host 'Next steps:'
 Write-Host '1) dotnet test'
 Write-Host "2) git add SecurityHelperLibrary/SecurityHelperLibrary.csproj CHANGELOG.md"
-Write-Host "3) git commit -m \"chore(release): prepare $Version\""
-Write-Host "4) git tag -a v$Version -m \"Release v$Version\""
+Write-Host ('3) git commit -m "chore(release): prepare ' + $Version + '"')
+Write-Host ('4) git tag -a v' + $Version + ' -m "Release v' + $Version + '"')
