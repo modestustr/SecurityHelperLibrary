@@ -66,7 +66,7 @@ namespace SecurityHelperLibrary
 
             // Get current attempt count to return result
             var currentAttempts = _attemptHistory[identifier];
-            return currentAttempts.Count <= _maxAttempts;
+            return currentAttempts.Count < _maxAttempts;
         }
 
         /// <summary>
