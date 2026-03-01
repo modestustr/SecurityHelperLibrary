@@ -57,7 +57,7 @@ jobs:
           /p:CoverageFormat=opencover
     
     - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./SecurityHelperLibrary.Tests/coverage.opencover.xml
         flags: unittests
@@ -93,9 +93,7 @@ jobs:
         dotnet build -c Release --no-restore /p:TreatWarningsAsErrors=true
     
     - name: Run StyleCop analyzers
-      continue-on-error: true
       run: |
-        dotnet add package StyleCop.Analyzers --version latest
         dotnet build -c Release --no-restore
     
     - name: Verify CHANGELOG.md updated

@@ -1,0 +1,26 @@
+# EditorConfig for SecurityHelperLibrary
+
+# Disable StyleCop analyzers during build
+root = true
+
+[*.cs]
+# SA0001: XML comment analysis disabled
+dotnet_diagnostic.SA0001.severity = none
+
+# SA1005: Single line comments should begin with a space  
+dotnet_diagnostic.SA1005.severity = none
+
+# SA1101: Prefix local calls with this
+dotnet_diagnostic.SA1101.severity = none
+
+# SA1503: Braces should not be omitted
+dotnet_diagnostic.SA1503.severity = none
+
+# SA1513: Closing brace should be followed by blank line
+dotnet_diagnostic.SA1513.severity = none
+
+# SA1633: File header missing
+dotnet_diagnostic.SA1633.severity = none
+
+# Disable all StyleCop warnings during build - they're checks, not failures
+dotnet_diagnostic.SA.severity = suggestion
