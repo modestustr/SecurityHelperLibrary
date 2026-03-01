@@ -4,6 +4,8 @@ Automated testing and security validation for every commit.
 
 ## Build & Test Status
 
+> **Latest Release**: v2.1.0 with security hardening, pentest enforcement, and CI/CD governance
+
 | Workflow | Status | Coverage |
 |----------|--------|----------|
 | **Security Pentest Suite** | [![Security Pentest Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml) | 13 tests across 10 attack vectors |
