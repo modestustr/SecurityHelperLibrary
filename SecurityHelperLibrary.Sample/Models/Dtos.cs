@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace SecurityHelperLibrary.Sample.Models;
 
 /// <summary>
@@ -73,6 +75,27 @@ public class AuthResponse
     /// The authenticated user's data (without the password hash, obviously!).
     /// </summary>
     public UserDto? User { get; set; }
+
+    /// <summary>
+    /// Derived keys (HKDF/AES/HMAC) demonstrated by the sample.
+    /// </summary>
+    public IEnumerable<DerivedKeyDto>? DerivedKeys { get; set; }
+}
+
+/// <summary>
+/// Describes a derived key returned for demo purposes.
+/// </summary>
+public class DerivedKeyDto
+{
+    /// <summary>
+    /// Purpose of the derived key (e.g., encryption, authentication).
+    /// </summary>
+    public string Purpose { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Base64-encoded derived key material.
+    /// </summary>
+    public string Base64Key { get; set; } = string.Empty;
 }
 
 /// <summary>

@@ -11,6 +11,8 @@ This project implements a simple but production-ready user authentication system
 - ✅ **REST API**: Clean endpoints for registration, login, and validation
 - ✅ **Comprehensive Documentation**: Every piece of code is thoroughly commented
 - ✅ **Best Practices**: Follows OWASP guidelines for authentication
+- ✅ **Rate Limiting**: Built-in `RateLimiter` throttles repeated register/login attempts (demonstrated below)
+- ✅ **Derived Key Material (HKDF)**: Uses `KeyDerivation.DeriveMultipleKeys` to produce session encryption/authentication keys for downstream scenarios
 
 ## 🏗️ Architecture
 
@@ -65,6 +67,16 @@ bool isValid = securityHelper.VerifyPasswordWithArgon2(plainPassword, storedHash
 - Email: Basic format validation
 - Password: Minimum 6 characters (you may want stronger requirements)
 - All inputs sanitized before database operations
+
+### 5. **Rate Limiting with RateLimiter**
+- Each request to `/api/auth/register` and `/api/auth/login` runs through the `RateLimiter` helper from the library.
+- Register is limited to 3 attempts per minute per username, login to 5 attempts per minute, and violations respond with `429 Too Many Requests`.
+- You can reuse the `RateLimiter` class wherever you want to throttle sensitive endpoints without a full-blown middleware stack.
+
+### 6. **Derived Key Material (HKDF)**
+- After a successful login, the sample derives two 32-byte keys via `KeyDerivation.DeriveMultipleKeys` (SHA-256 + context) so you can demonstrate key separation for encryption vs. authentication.
+- The `DerivedKeys` section in the JSON response shows the Base64-encoded results; treat them as illustrative placeholders for how you might bootstrap session tokens, AK/SK pairs, or key-wrapping secrets.
+- Because the sample references the main library project directly, this derivation automatically uses the latest HKDF fallback/`.NET 8` path without extra wiring.
 
 ## 🚀 Getting Started
 
@@ -259,6 +271,12 @@ builder.Services.AddScoped<IUserService, UserService>();
 // - ApplicationDbContext (for database access)
 // - ISecurityHelper (for password operations)
 ```
+
+## 🔁 Keeping the Sample in Sync
+
+- The sample project references `SecurityHelperLibrary.csproj` directly, so rebuilding the solution already uses the latest library code. Keep the reference as-is and avoid copying DLLs manually.
+- Whenever the library ships a new feature (like `RateLimiter` or `KeyDerivation`), update this README and the controller/service logic to highlight it, just like we did for 2.1.2.
+- Consider adding a simple smoke test or integration script that runs `dotnet run` in the sample after major changes to ensure the walkthrough still works.
 
 ## 🗄️ Database Schema
 

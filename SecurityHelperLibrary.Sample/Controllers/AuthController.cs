@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using SecurityHelperLibrary;
 using SecurityHelperLibrary.Sample.Data;
 using SecurityHelperLibrary.Sample.Models;
 using SecurityHelperLibrary.Sample.Services;
+using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SecurityHelperLibrary.Sample.Controllers;
 
@@ -44,6 +48,8 @@ public class AuthController : ControllerBase
     /// Logger for recording events and errors (optional, for debugging).
     /// </summary>
     private readonly ILogger<AuthController> _logger;
+    private static readonly RateLimiter RegisterRateLimiter = new(maxAttempts: 3, windowDurationSeconds: 60);
+    private static readonly RateLimiter LoginRateLimiter = new(maxAttempts: 5, windowDurationSeconds: 60);
 
     /// <summary>
     /// Constructor - dependencies are injected automatically by ASP.NET Core DI container.
@@ -125,6 +131,12 @@ public class AuthController : ControllerBase
                 Success = false,
                 Message = "Request body is required."
             });
+        }
+
+        string registerIdentifier = request.Username.Trim().ToLowerInvariant();
+        if (!RegisterRateLimiter.IsAllowed(registerIdentifier))
+        {
+            return TooManyAttempts("Too many registration attempts. Please wait a minute before trying again.");
         }
 
         // CALL SERVICE: Perform registration with all business logic
@@ -233,6 +245,12 @@ public class AuthController : ControllerBase
             });
         }
 
+        string loginIdentifier = request.UsernameOrEmail.Trim().ToLowerInvariant();
+        if (!LoginRateLimiter.IsAllowed(loginIdentifier))
+        {
+            return TooManyAttempts("Too many login attempts. Try again in a minute.");
+        }
+
         // CALL SERVICE: Authenticate user
         var (success, message, user) = await _userService.AuthenticateUserAsync(
             request.UsernameOrEmail,
@@ -257,7 +275,8 @@ public class AuthController : ControllerBase
         {
             Success = true,
             Message = message,
-            User = userDto
+            User = userDto,
+            DerivedKeys = BuildDerivedKeys(user, "session")
         });
     }
 
@@ -362,5 +381,39 @@ public class AuthController : ControllerBase
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };
+    }
+
+    private static IEnumerable<DerivedKeyDto> BuildDerivedKeys(User user, string context)
+    {
+        byte[] seed = Encoding.UTF8.GetBytes(user.PasswordHash);
+        byte[][] keys = KeyDerivation.DeriveMultipleKeys(
+            HashAlgorithmName.SHA256,
+            seed,
+            keyCount: 2,
+            keyLength: 32,
+            context: context);
+
+        return new[]
+        {
+            new DerivedKeyDto
+            {
+                Purpose = "SessionEncryption",
+                Base64Key = Convert.ToBase64String(keys[0])
+            },
+            new DerivedKeyDto
+            {
+                Purpose = "SessionAuthentication",
+                Base64Key = Convert.ToBase64String(keys[1])
+            }
+        };
+    }
+
+    private ActionResult<AuthResponse> TooManyAttempts(string message)
+    {
+        return StatusCode(StatusCodes.Status429TooManyRequests, new AuthResponse
+        {
+            Success = false,
+            Message = message
+        });
     }
 }
