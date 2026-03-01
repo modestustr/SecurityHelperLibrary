@@ -2,7 +2,7 @@ name: Publish NuGet Package
 
 on:
   workflow_run:
-    workflows: ['Security Pentest Suite', 'Build & Test Suite']
+    workflows: ['Build & Test Suite']
     branches: [ master ]
     types: [ completed ]
   workflow_dispatch:
@@ -57,7 +57,8 @@ jobs:
       run: |
         dotnet nuget push ./nupkg/SecurityHelperLibrary.${{ steps.version.outputs.version }}.nupkg \
           -k ${{ secrets.NUGET_API_KEY }} \
-          -s https://api.nuget.org/v3/index.json
+          -s https://api.nuget.org/v3/index.json \
+          --skip-duplicate
     
     - name: Create GitHub Release
       if: steps.version.outputs.version != ''
