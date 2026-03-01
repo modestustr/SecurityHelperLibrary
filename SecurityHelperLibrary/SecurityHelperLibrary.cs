@@ -229,10 +229,11 @@ namespace SecurityHelperLibrary
             byte[] salt = Convert.FromBase64String(parts[2]);
             string expectedHash = parts[3];
 
-            string computedHash = HashPasswordWithPBKDF2(password, salt, algorithm, iterations);
-
-            byte[] computedBytes = Convert.FromBase64String(computedHash);
             byte[] expectedBytes = Convert.FromBase64String(expectedHash);
+            if (expectedBytes.Length < MinHashLengthBytes)
+                return false;
+            string computedHash = HashPasswordWithPBKDF2(password, salt, algorithm, iterations, expectedBytes.Length);
+            byte[] computedBytes = Convert.FromBase64String(computedHash);
 
             return FixedTimeEquals(computedBytes, expectedBytes);
         }
@@ -284,9 +285,9 @@ namespace SecurityHelperLibrary
         /// <param name="iterations">Number of iterations for PBKDF2 (default 210000).</param>
         /// <param name="hashLength">Length of the derived hash in bytes (default 32).</param>
         /// <returns>Base64-encoded hash string.</returns>
-        public async Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32)
+        public Task<string> HashPasswordWithPBKDF2Async(string password, byte[] salt, HashAlgorithmName hashAlgorithm, int iterations = 210000, int hashLength = 32)
         {
-            return await Task.Run(() => HashPasswordWithPBKDF2(password, salt, hashAlgorithm, iterations, hashLength));
+            return Task.FromResult(HashPasswordWithPBKDF2(password, salt, hashAlgorithm, iterations, hashLength));
         }
 
         /// <summary>
@@ -315,11 +316,12 @@ namespace SecurityHelperLibrary
                 throw new ArgumentOutOfRangeException(nameof(hashLength), $"Hash length must be at least {MinHashLengthBytes} bytes.");
 
             byte[] saltBytes = GetSaltBytes(salt);
+            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
             var config = new Argon2Config
             {
                 Type = Argon2Type.HybridAddressing,
-                Version =Argon2Version.Nineteen,
-                Password = Encoding.UTF8.GetBytes(password),
+                Version = Argon2Version.Nineteen,
+                Password = passwordBytes,
                 Salt = saltBytes,
                 TimeCost = iterations,
                 MemoryCost = memoryKb,
@@ -328,9 +330,16 @@ namespace SecurityHelperLibrary
                 HashLength = hashLength
             };
 
-            using (var argon2 = new Argon2(config))
+            try
             {
-                return Convert.ToBase64String(argon2.Hash().Buffer);
+                using (var argon2 = new Argon2(config))
+                {
+                    return Convert.ToBase64String(argon2.Hash().Buffer);
+                }
+            }
+            finally
+            {
+                Array.Clear(passwordBytes, 0, passwordBytes.Length);
             }
         }
 
@@ -344,9 +353,9 @@ namespace SecurityHelperLibrary
         /// <param name="degreeOfParallelism">Degree of parallelism (default 4).</param>
         /// <param name="hashLength">Length of the hash in bytes (default 32).</param>
         /// <returns>Base64-encoded Argon2id hash string.</returns>
-        public async Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32)
+        public Task<string> HashPasswordWithArgon2Async(string password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32)
         {
-            return await Task.Run(() => HashPasswordWithArgon2(password, salt, iterations, memoryKb, degreeOfParallelism, hashLength));
+            return Task.FromResult(HashPasswordWithArgon2(password, salt, iterations, memoryKb, degreeOfParallelism, hashLength));
         }
 
         /// <summary>
@@ -375,9 +384,9 @@ namespace SecurityHelperLibrary
         /// <param name="key">The secret key for HMAC.</param>
         /// <param name="hashAlgorithm">The hash algorithm to use (SHA256, SHA384, SHA512).</param>
         /// <returns>Base64-encoded HMAC string.</returns>
-        public async Task<string> ComputeHMACAsync(string input, string key, HashAlgorithmName hashAlgorithm)
+        public Task<string> ComputeHMACAsync(string input, string key, HashAlgorithmName hashAlgorithm)
         {
-            return await Task.Run(() => ComputeHMAC(input, key, hashAlgorithm));
+            return Task.FromResult(ComputeHMAC(input, key, hashAlgorithm));
         }
 
         /// <summary>
@@ -402,13 +411,14 @@ namespace SecurityHelperLibrary
         /// <param name="plainText">The plain text to encrypt.</param>
         /// <param name="key">The encryption key (32 bytes for AES-256).</param>
         /// <returns>Encrypted string in the format nonce|tag|ciphertext (all Base64).</returns>
-#if NET6_0_OR_GREATER
         public string EncryptStringGCM(string plainText, byte[] key)
         {
+            if (key == null)
+                throw new ArgumentNullException(nameof(key));
             if (key.Length != 32)
                 throw new ArgumentException("Key must be 32 bytes (256 bits).");
 
-            using (var aesGcm = new AesGcm(key))
+            using (var aesGcm = new AesGcm(key, AesGcm.TagByteSizes.MaxSize))
             {
                 byte[] nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
                 RandomNumberGenerator.Fill(nonce);
@@ -431,6 +441,8 @@ namespace SecurityHelperLibrary
         /// <returns>Decrypted plain text string.</returns>
         public string DecryptStringGCM(string combinedCipherText, byte[] key)
         {
+            if (string.IsNullOrWhiteSpace(combinedCipherText))
+                throw new ArgumentException("Encrypted text cannot be null or empty.", nameof(combinedCipherText));
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
             if (key.Length != 32)
@@ -443,25 +455,18 @@ namespace SecurityHelperLibrary
             byte[] nonce = Convert.FromBase64String(parts[0]);
             byte[] tag = Convert.FromBase64String(parts[1]);
             byte[] cipherBytes = Convert.FromBase64String(parts[2]);
+            if (nonce.Length != AesGcm.NonceByteSizes.MaxSize)
+                throw new FormatException($"Invalid nonce size. Expected {AesGcm.NonceByteSizes.MaxSize} bytes.");
+            if (tag.Length != AesGcm.TagByteSizes.MaxSize)
+                throw new FormatException($"Invalid tag size. Expected {AesGcm.TagByteSizes.MaxSize} bytes.");
             byte[] decryptedBytes = new byte[cipherBytes.Length];
 
-            using (var aesGcm = new AesGcm(key))
+            using (var aesGcm = new AesGcm(key, AesGcm.TagByteSizes.MaxSize))
             {
                 aesGcm.Decrypt(nonce, cipherBytes, tag, decryptedBytes);
                 return Encoding.UTF8.GetString(decryptedBytes);
             }
         }
-#else
-        public string EncryptStringGCM(string plainText, byte[] key)
-        {
-            throw new NotSupportedException("AES-GCM encryption is only supported on .NET 6.0 or later.");
-        }
-
-        public string DecryptStringGCM(string combinedCipherText, byte[] key)
-        {
-            throw new NotSupportedException("AES-GCM decryption is only supported on .NET 6.0 or later.");
-        }
-#endif
 #else
         public string EncryptStringGCM(string plainText, byte[] key)
         {
@@ -524,11 +529,8 @@ namespace SecurityHelperLibrary
 
             try
             {
-                using (var pbkdf2 = new Rfc2898DeriveBytes(Encoding.UTF8.GetString(passwordBytes), salt, iterations, hashAlgorithm))
-                {
-                    byte[] hash = pbkdf2.GetBytes(hashLength);
-                    return Convert.ToBase64String(hash);
-                }
+                byte[] hash = Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, iterations, hashAlgorithm, hashLength);
+                return Convert.ToBase64String(hash);
             }
             finally
             {
@@ -557,10 +559,11 @@ namespace SecurityHelperLibrary
 
             try
             {
-                string computedHash = HashPasswordWithPBKDF2Span(password, salt, algorithm, iterations);
-
-                byte[] computedBytes = Convert.FromBase64String(computedHash);
                 byte[] expectedBytes = Convert.FromBase64String(expectedHash);
+                if (expectedBytes.Length < MinHashLengthBytes)
+                    return false;
+                string computedHash = HashPasswordWithPBKDF2Span(password, salt, algorithm, iterations, expectedBytes.Length);
+                byte[] computedBytes = Convert.FromBase64String(computedHash);
 
                 return FixedTimeEquals(computedBytes, expectedBytes);
             }

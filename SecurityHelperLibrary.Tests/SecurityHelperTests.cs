@@ -302,6 +302,31 @@ namespace SecurityHelperLibrary.Tests
             }
             Assert.False(result);
         }
+
+        [Fact]
+        public void VerifyPasswordWithPBKDF2_WithCustomHashLength_ReturnsTrue()
+        {
+            // Arrange
+            string password = "MySecurePassword";
+            int customHashLength = 48;
+            string storedHash = _securityHelper.HashPasswordWithPBKDF2(password, out string _, HashAlgorithmName.SHA256, 210000, customHashLength);
+
+            // Act
+            bool result = _securityHelper.VerifyPasswordWithPBKDF2(password, storedHash);
+
+            // Assert
+            Assert.True(result);
+        }
+
+        [Fact]
+        public void VerifyPasswordWithPBKDF2_WithInvalidIterationValue_ThrowsFormatException()
+        {
+            // Arrange
+            string invalid = "SHA256|NaN|c2FsdA==|aGFzaA==";
+
+            // Act & Assert
+            Assert.Throws<FormatException>(() => _securityHelper.VerifyPasswordWithPBKDF2("password", invalid));
+        }
 #endif
 
         #endregion
@@ -452,6 +477,48 @@ namespace SecurityHelperLibrary.Tests
 
             // Act & Assert
             Assert.Throws<FormatException>(() => _securityHelper.DecryptStringGCM(invalidFormat, key));
+        }
+
+        [Fact]
+        public void DecryptStringGCM_WithInvalidNonceSize_ThrowsFormatException()
+        {
+            // Arrange
+            string plainText = "SensitiveData";
+            byte[] key = _securityHelper.GenerateSymmetricKey();
+            string encrypted = _securityHelper.EncryptStringGCM(plainText, key);
+            var parts = encrypted.Split('|');
+            byte[] validNonce = Convert.FromBase64String(parts[0]);
+            byte[] validTag = Convert.FromBase64String(parts[1]);
+            byte[] validCipher = Convert.FromBase64String(parts[2]);
+
+            byte[] shortNonce = new byte[validNonce.Length - 1];
+            Array.Copy(validNonce, shortNonce, shortNonce.Length);
+
+            string invalid = $"{Convert.ToBase64String(shortNonce)}|{Convert.ToBase64String(validTag)}|{Convert.ToBase64String(validCipher)}";
+
+            // Act & Assert
+            Assert.Throws<FormatException>(() => _securityHelper.DecryptStringGCM(invalid, key));
+        }
+
+        [Fact]
+        public void DecryptStringGCM_WithInvalidTagSize_ThrowsFormatException()
+        {
+            // Arrange
+            string plainText = "SensitiveData";
+            byte[] key = _securityHelper.GenerateSymmetricKey();
+            string encrypted = _securityHelper.EncryptStringGCM(plainText, key);
+            var parts = encrypted.Split('|');
+            byte[] validNonce = Convert.FromBase64String(parts[0]);
+            byte[] validTag = Convert.FromBase64String(parts[1]);
+            byte[] validCipher = Convert.FromBase64String(parts[2]);
+
+            byte[] shortTag = new byte[validTag.Length - 1];
+            Array.Copy(validTag, shortTag, shortTag.Length);
+
+            string invalid = $"{Convert.ToBase64String(validNonce)}|{Convert.ToBase64String(shortTag)}|{Convert.ToBase64String(validCipher)}";
+
+            // Act & Assert
+            Assert.Throws<FormatException>(() => _securityHelper.DecryptStringGCM(invalid, key));
         }
 
         [Fact]
