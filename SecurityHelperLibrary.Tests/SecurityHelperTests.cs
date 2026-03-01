@@ -126,7 +126,9 @@ namespace SecurityHelperLibrary.Tests
             byte[] salt = Convert.FromBase64String(_securityHelper.GenerateSalt());
 
             // Act
+#pragma warning disable CS0618
             string hash = _securityHelper.HashPasswordWithPBKDF2(password, salt, HashAlgorithmName.SHA256);
+#pragma warning restore CS0618
 
             // Assert
             Assert.NotNull(hash);
@@ -177,8 +179,10 @@ namespace SecurityHelperLibrary.Tests
             byte[] salt = Convert.FromBase64String(_securityHelper.GenerateSalt());
 
             // Act
+#pragma warning disable CS0618
             string hash1 = _securityHelper.HashPasswordWithPBKDF2(password, salt, HashAlgorithmName.SHA256);
             string hash2 = _securityHelper.HashPasswordWithPBKDF2(password, salt, HashAlgorithmName.SHA256);
+#pragma warning restore CS0618
 
             // Assert
             Assert.Equal(hash1, hash2);
@@ -609,7 +613,9 @@ namespace SecurityHelperLibrary.Tests
             string salt = _securityHelper.GenerateSalt();
 
             // Act
+#pragma warning disable CS0618
             string hash = _securityHelper.HashPasswordWithArgon2(password, salt);
+#pragma warning restore CS0618
 
             // Assert
             Assert.NotNull(hash);
@@ -626,8 +632,10 @@ namespace SecurityHelperLibrary.Tests
             string salt = _securityHelper.GenerateSalt();
 
             // Act
+#pragma warning disable CS0618
             string hash1 = _securityHelper.HashPasswordWithArgon2(password, salt);
             string hash2 = _securityHelper.HashPasswordWithArgon2(password, salt);
+#pragma warning restore CS0618
 
             // Assert
             Assert.Equal(hash1, hash2);
@@ -642,8 +650,10 @@ namespace SecurityHelperLibrary.Tests
             string salt = _securityHelper.GenerateSalt();
 
             // Act
+#pragma warning disable CS0618
             string hash1 = _securityHelper.HashPasswordWithArgon2(password1, salt);
             string hash2 = _securityHelper.HashPasswordWithArgon2(password2, salt);
+#pragma warning restore CS0618
 
             // Assert
             Assert.NotEqual(hash1, hash2);
@@ -698,7 +708,9 @@ namespace SecurityHelperLibrary.Tests
 #pragma warning disable CS0618
             string hashFromString = _securityHelper.HashPasswordWithPBKDF2(passwordStr, salt, HashAlgorithmName.SHA256);
 #pragma warning restore CS0618
+#pragma warning disable CS0618
             string hashFromSpan = _securityHelper.HashPasswordWithPBKDF2(passwordSpan, salt, HashAlgorithmName.SHA256);
+#pragma warning restore CS0618
 
             // Assert
             Assert.Equal(hashFromString, hashFromSpan);
