@@ -1,0 +1,85 @@
+name: Publish NuGet Package
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'SecurityHelperLibrary/SecurityHelperLibrary.csproj'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish to NuGet.org
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Extract Version
+      id: version
+      run: |
+        VERSION=$(grep '<Version>' SecurityHelperLibrary/SecurityHelperLibrary.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+    
+    - name: Build Package
+      run: |
+        dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
+          -c Release \
+          -o ./nupkg
+    
+    - name: Check for changes from previous version
+      id: check_version
+      run: |
+        CURRENT_VERSION=$(ls -1 ./nupkg/SecurityHelperLibrary.*.nupkg | sed 's/.*SecurityHelperLibrary\.\(.*\)\.nupkg/\1/' | head -1)
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
+    
+    - name: Publish to NuGet
+      if: steps.version.outputs.version != ''
+      run: |
+        dotnet nuget push ./nupkg/SecurityHelperLibrary.${{ steps.version.outputs.version }}.nupkg \
+          -k ${{ secrets.NUGET_API_KEY }} \
+          -s https://api.nuget.org/v3/index.json \
+          --skip-duplicate
+      continue-on-error: true
+    
+    - name: Create GitHub Release
+      if: steps.version.outputs.version != ''
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        release_name: Release ${{ steps.version.outputs.version }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: false
+    
+    - name: Upload Package Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package-${{ steps.version.outputs.version }}
+        path: ./nupkg/
+    
+    - name: Publish Status
+      run: |
+        echo "## NuGet Publish Status 📦" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package**: SecurityHelperLibrary.${{ steps.version.outputs.version }}.nupkg" >> $GITHUB_STEP_SUMMARY
+        echo "- **Repository**: [NuGet.org](https://www.nuget.org/packages/SecurityHelperLibrary/)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Install with:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "dotnet add package SecurityHelperLibrary --version ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "# or" >> $GITHUB_STEP_SUMMARY
+        echo "Install-Package SecurityHelperLibrary -Version ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

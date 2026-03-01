@@ -1,0 +1,149 @@
+name: Build & Test Suite
+
+on:
+  push:
+    branches: [ master, development ]
+    paths:
+      - 'SecurityHelperLibrary/**'
+      - 'SecurityHelperLibrary.Tests/**'
+      - 'SecurityHelperLibrary.Sample/**'
+      - '*.csproj'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ master, development ]
+    paths:
+      - 'SecurityHelperLibrary/**'
+      - 'SecurityHelperLibrary.Tests/**'
+      - 'SecurityHelperLibrary.Sample/**'
+      - '*.csproj'
+
+jobs:
+  build:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        dotnet-version: ['6.0.x', '8.0.x']
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build Release
+      run: dotnet build -c Release --no-restore /p:TreatWarningsAsErrors=true
+    
+    - name: Run Unit Tests
+      run: |
+        dotnet test SecurityHelperLibrary.Tests/SecurityHelperLibrary.Tests.csproj \
+          -c Release \
+          --no-restore \
+          --logger "console;verbosity=normal" \
+          --logger "trx;LogFileName=unit-test-results.trx" \
+          --filter "Category!=Pentest" \
+          /p:CollectCoverage=true \
+          /p:CoverageFormat=opencover
+    
+    - name: Upload Coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./SecurityHelperLibrary.Tests/coverage.opencover.xml
+        flags: unittests
+        name: net-${{ matrix.dotnet-version }}
+        fail_ci_if_error: false
+    
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-results-${{ matrix.dotnet-version }}
+        path: "**/unit-test-results.trx"
+
+  quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Check for compiler warnings
+      run: |
+        dotnet build -c Release --no-restore /p:TreatWarningsAsErrors=true
+    
+    - name: Run StyleCop analyzers
+      continue-on-error: true
+      run: |
+        dotnet add package StyleCop.Analyzers --version latest
+        dotnet build -c Release --no-restore
+    
+    - name: Verify CHANGELOG.md updated
+      if: github.event_name == 'pull_request'
+      run: |
+        if git diff origin/${{ github.base_ref }}... | grep -q "^+.*## \["; then
+          echo "✓ CHANGELOG.md appears to be updated"
+        else
+          echo "⚠ CHANGELOG.md may need updating"
+          exit 0
+        fi
+
+  package:
+    name: Package & Version Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+    
+    - name: Pack NuGet Package
+      run: |
+        dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
+          -c Release \
+          -o ./nupkg
+    
+    - name: Upload NuGet Package
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: ./nupkg/
+
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build, quality]
+    
+    steps:
+    - name: Check Build Status
+      run: |
+        echo "## Build Results 🔨" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Build**: ${{ needs.build.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Quality**: ${{ needs.quality.result }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.quality.result }}" != "success" ]; then
+          exit 1
+        fi

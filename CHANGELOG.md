@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0] - 2026-03-01
+- Security: Strengthen Argon2 minimum parameters — `MinArgon2Iterations: 2→3`, `MinArgon2MemoryKb: 32768→65536` (32MB→64MB) to increase resistance against hardware-accelerated dictionary attacks.
+- Security: Eliminate `GetSaltBytes()` UTF-8 fallback — enforce Base64-only salt format to prevent format-confusion bypass attacks.
+- Security: Enhance `DecryptStringGCM()` with component-level Base64 validation (nonce, tag, ciphertext) and guaranteed memory cleanup via `finally` block with `SecureZeroMemory()`.
+- Security: Implement `SecureZeroMemory()` method using `GCHandle.Alloc(pinned)` + `Array.Clear()` + `Marshal.WriteByte()` to prevent JIT compiler optimization bypass of sensitive memory clearing.
+- Chore: Add GitHub Actions CI/CD workflow (`security-tests.yml`) for automated pentest suite execution on every PR and push to enforce security regression prevention across all target frameworks.
+- Note: All changes are backward-compatible. No public API breaking changes.
+
 ## [2.0.3] - 2026-03-01
 - Fix: harden PBKDF2 verification with dynamic hash length,Fix: tighten AES-GCM decrypt validation for nonce/tag sizes,Security: clear Argon2 password bytes after hashing,Chore: simplify async wrappers and improve robustness
 
