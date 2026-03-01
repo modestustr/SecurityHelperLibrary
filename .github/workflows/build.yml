@@ -123,6 +123,7 @@ jobs:
       run: |
         dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
           -c Release \
+          -f net8.0 \
           -o ./nupkg
     
     - name: Upload NuGet Package
