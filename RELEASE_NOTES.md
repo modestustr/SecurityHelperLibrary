@@ -1,5 +1,31 @@
 # Release Notes - SecurityHelperLibrary
 
+## 2.1.1 (2026-03-01)
+
+### Overview
+This patch release improves runtime reliability and CI/CD release stability without introducing breaking API changes.
+
+### Runtime Fixes
+- **RateLimiter thread safety and determinism**
+   - `IsAllowed()` behavior corrected for limit boundaries.
+   - Per-identifier locking added for concurrent access consistency.
+
+- **AES-GCM empty plaintext compatibility**
+   - `DecryptStringGCM()` now correctly handles valid empty ciphertext component produced by empty plaintext encryption.
+
+### CI/CD & Release Fixes
+- Packaging pipeline updated to keep multi-target support (`net481` + `net8.0`) during automated builds.
+- Publish workflow deduplicated to avoid repeated publish attempts from multiple workflow triggers.
+- NuGet push made idempotent with `--skip-duplicate`.
+- GitHub Release creation fixed by adding required workflow permission (`contents: write`).
+
+### Compatibility
+- ✅ No public API breaking changes.
+- ✅ Existing integrations remain valid.
+- ✅ Consumers on both `net481` and `net8.0` remain supported.
+
+---
+
 ## 2.1.0 (2026-03-01)
 
 ### Overview
