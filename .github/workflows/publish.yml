@@ -25,6 +25,11 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
+
+    - name: Build target frameworks
+      run: |
+        dotnet build SecurityHelperLibrary/SecurityHelperLibrary.csproj -c Release -f net481
+        dotnet build SecurityHelperLibrary/SecurityHelperLibrary.csproj -c Release -f net8.0
     
     - name: Extract Version
       id: version
@@ -37,6 +42,7 @@ jobs:
       run: |
         dotnet pack SecurityHelperLibrary/SecurityHelperLibrary.csproj \
           -c Release \
+          --no-build \
           -o ./nupkg
     
     - name: Check for changes from previous version
