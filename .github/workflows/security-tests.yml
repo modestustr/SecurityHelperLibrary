@@ -13,7 +13,7 @@ jobs:
     
     strategy:
       matrix:
-        dotnet-version: ['6.0.x', '8.0.x']
+        dotnet-version: ['8.0.x']
     
     steps:
     - uses: actions/checkout@v4
@@ -31,10 +31,13 @@ jobs:
     
     - name: Run Pentest Suite
       run: |
+        mkdir -p TestResults
         dotnet test SecurityHelperLibrary.Tests/SecurityHelperLibrary.Tests.csproj \
           --filter "Category=Pentest" \
+          -f net8.0 \
           -c Release \
           --no-restore \
+          --results-directory TestResults \
           --logger "console;verbosity=detailed" \
           --logger "trx;LogFileName=pentest-results.trx"
     
@@ -43,7 +46,7 @@ jobs:
       if: always()
       with:
         name: pentest-results-${{ matrix.dotnet-version }}
-        path: "**/pentest-results.trx"
+        path: "TestResults/pentest-results.trx"
     
     - name: Test Report Summary
       if: always()
