@@ -11,7 +11,7 @@ namespace SecurityHelperLibrary
     public class KeyDerivation
     {
         /// <summary>
-        /// HKDF (HMAC-based Key Derivation Function) as per RFC 5869.
+        /// HKDF key derivation as per RFC 5869 (Extract + Expand).
         /// Suitable for deriving multiple cryptographic keys from a single master secret.
         /// </summary>
         /// <param name="algorithm">Hash algorithm (SHA256, SHA384, SHA512)</param>
@@ -20,7 +20,7 @@ namespace SecurityHelperLibrary
         /// <param name="info">Optional context/application-specific info</param>
         /// <param name="outputLength">Desired output key length in bytes</param>
         /// <returns>Derived key material</returns>
-        public static byte[] HkdfExpand(
+        public static byte[] DeriveKeyMaterial(
             HashAlgorithmName algorithm,
             byte[] inputKeyMaterial,
             byte[] salt = null,
@@ -32,12 +32,37 @@ namespace SecurityHelperLibrary
             if (outputLength < 1 || outputLength > 255 * GetHashLength(algorithm))
                 throw new ArgumentOutOfRangeException(nameof(outputLength), $"Output length must be 1-{255 * GetHashLength(algorithm)} bytes");
 
+#if NET8_0_OR_GREATER
+            byte[] output = new byte[outputLength];
+            HKDF.DeriveKey(
+                algorithm,
+                inputKeyMaterial,
+                output,
+                salt ?? Array.Empty<byte>(),
+                info ?? Array.Empty<byte>());
+
+            return output;
+#else
             // Step 1: Extract
             salt = salt ?? new byte[GetHashLength(algorithm)];
             byte[] prk = HkdfExtract(algorithm, salt, inputKeyMaterial);
 
             // Step 2: Expand
-            return HkdfExpand(algorithm, prk, info ?? new byte[0], outputLength);
+            return HkdfExpandCore(algorithm, prk, info ?? new byte[0], outputLength);
+#endif
+        }
+
+        /// <summary>
+        /// Backward-compatible alias for HKDF key derivation.
+        /// </summary>
+        public static byte[] HkdfExpand(
+            HashAlgorithmName algorithm,
+            byte[] inputKeyMaterial,
+            byte[] salt = null,
+            byte[] info = null,
+            int outputLength = 32)
+        {
+            return DeriveKeyMaterial(algorithm, inputKeyMaterial, salt, info, outputLength);
         }
 
         /// <summary>
@@ -45,40 +70,37 @@ namespace SecurityHelperLibrary
         /// </summary>
         private static byte[] HkdfExtract(HashAlgorithmName algorithm, byte[] salt, byte[] inputKeyMaterial)
         {
-            using (var hmac = new HMACSHA256(salt))
+            if (algorithm.Name == "SHA256" || algorithm == HashAlgorithmName.SHA256)
             {
-                if (algorithm.Name == "SHA256" || algorithm == HashAlgorithmName.SHA256)
+                using (var sha256Hmac = new HMACSHA256(salt))
                 {
-                    using (var sha256Hmac = new HMACSHA256(salt))
-                    {
-                        return sha256Hmac.ComputeHash(inputKeyMaterial);
-                    }
+                    return sha256Hmac.ComputeHash(inputKeyMaterial);
                 }
-                else if (algorithm.Name == "SHA384" || algorithm == HashAlgorithmName.SHA384)
+            }
+            else if (algorithm.Name == "SHA384" || algorithm == HashAlgorithmName.SHA384)
+            {
+                using (var sha384Hmac = new HMACSHA384(salt))
                 {
-                    using (var sha384Hmac = new HMACSHA384(salt))
-                    {
-                        return sha384Hmac.ComputeHash(inputKeyMaterial);
-                    }
+                    return sha384Hmac.ComputeHash(inputKeyMaterial);
                 }
-                else if (algorithm.Name == "SHA512" || algorithm == HashAlgorithmName.SHA512)
+            }
+            else if (algorithm.Name == "SHA512" || algorithm == HashAlgorithmName.SHA512)
+            {
+                using (var sha512Hmac = new HMACSHA512(salt))
                 {
-                    using (var sha512Hmac = new HMACSHA512(salt))
-                    {
-                        return sha512Hmac.ComputeHash(inputKeyMaterial);
-                    }
+                    return sha512Hmac.ComputeHash(inputKeyMaterial);
                 }
-                else
-                {
-                    throw new NotSupportedException($"Algorithm {algorithm.Name} not supported. Use SHA256, SHA384, or SHA512.");
-                }
+            }
+            else
+            {
+                throw new NotSupportedException($"Algorithm {algorithm.Name} not supported. Use SHA256, SHA384, or SHA512.");
             }
         }
 
         /// <summary>
         /// HKDF Expand step (RFC 5869 Section 2.3).
         /// </summary>
-        private static byte[] HkdfExpand(HashAlgorithmName algorithm, byte[] prk, byte[] info, int outputLength)
+        private static byte[] HkdfExpandCore(HashAlgorithmName algorithm, byte[] prk, byte[] info, int outputLength)
         {
             int hashLen = GetHashLength(algorithm);
             int n = (outputLength + hashLen - 1) / hashLen; // Ceiling division
@@ -170,7 +192,7 @@ namespace SecurityHelperLibrary
             byte[] contextBytes = Encoding.UTF8.GetBytes(context ?? "");
             int totalLength = keyCount * keyLength;
 
-            byte[] derivedMaterial = HkdfExpand(algorithm, masterKey, salt, contextBytes, totalLength);
+            byte[] derivedMaterial = DeriveKeyMaterial(algorithm, masterKey, salt, contextBytes, totalLength);
 
             byte[][] keys = new byte[keyCount][];
             for (int i = 0; i < keyCount; i++)

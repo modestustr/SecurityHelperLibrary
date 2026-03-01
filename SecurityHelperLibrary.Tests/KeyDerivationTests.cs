@@ -9,6 +9,38 @@ namespace SecurityHelperLibrary.Tests
     {
         [Fact]
         [Trait("Category", "KeyDerivation")]
+        public void KeyDerivation_DeriveKeyMaterial_BasicFunctionality()
+        {
+            byte[] ikm = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+            byte[] salt = new byte[] { 9, 10, 11, 12 };
+
+            byte[] key = KeyDerivation.DeriveKeyMaterial(
+                HashAlgorithmName.SHA256,
+                ikm,
+                salt,
+                info: null,
+                outputLength: 32);
+
+            Assert.NotNull(key);
+            Assert.Equal(32, key.Length);
+        }
+
+        [Fact]
+        [Trait("Category", "KeyDerivation")]
+        public void KeyDerivation_LegacyHkdfExpand_CompatibleWithDeriveKeyMaterial()
+        {
+            byte[] ikm = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+            byte[] salt = new byte[] { 9, 10, 11, 12 };
+            byte[] info = System.Text.Encoding.UTF8.GetBytes("context");
+
+            byte[] modern = KeyDerivation.DeriveKeyMaterial(HashAlgorithmName.SHA256, ikm, salt, info, 32);
+            byte[] legacy = KeyDerivation.HkdfExpand(HashAlgorithmName.SHA256, ikm, salt, info, 32);
+
+            Assert.Equal(modern, legacy);
+        }
+
+        [Fact]
+        [Trait("Category", "KeyDerivation")]
         public void KeyDerivation_HkdfExpand_BasicFunctionality()
         {
             byte[] ikm = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };

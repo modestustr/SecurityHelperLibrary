@@ -141,5 +141,18 @@ namespace SecurityHelperLibrary.Tests
             Assert.Equal(100, successCount);
             Assert.Equal(100, failureCount);
         }
+
+        [Fact]
+        [Trait("Category", "RateLimiting")]
+        public void RateLimiter_HardLimit_PreventsUnboundedIdentifierGrowth()
+        {
+            var limiter = new RateLimiter(maxAttempts: 1, windowDurationSeconds: 60, maxTrackedIdentifiers: 2);
+
+            Assert.True(limiter.IsAllowed("user1"));
+            Assert.True(limiter.IsAllowed("user2"));
+
+            Assert.False(limiter.IsAllowed("user3"));
+            Assert.Equal(2, limiter.GetTrackedIdentifierCount());
+        }
     }
 }

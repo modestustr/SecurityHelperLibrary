@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace SecurityHelperLibrary
 {
@@ -11,9 +10,17 @@ namespace SecurityHelperLibrary
     /// </summary>
     public class RateLimiter
     {
+        private sealed class AttemptBucket
+        {
+            public Queue<DateTime> Attempts { get; } = new Queue<DateTime>();
+
+            public object SyncRoot { get; } = new object();
+        }
+
         private readonly int _maxAttempts;
         private readonly TimeSpan _windowDuration;
-        private readonly ConcurrentDictionary<string, List<DateTime>> _attemptHistory;
+        private readonly int _maxTrackedIdentifiers;
+        private readonly ConcurrentDictionary<string, AttemptBucket> _attemptHistory;
         private readonly object _cleanupLock = new object();
         private DateTime _lastCleanup = DateTime.UtcNow;
 
@@ -22,16 +29,20 @@ namespace SecurityHelperLibrary
         /// </summary>
         /// <param name="maxAttempts">Maximum allowed attempts in the window (default: 5)</param>
         /// <param name="windowDurationSeconds">Time window in seconds (default: 60)</param>
-        public RateLimiter(int maxAttempts = 5, int windowDurationSeconds = 60)
+        /// <param name="maxTrackedIdentifiers">Maximum distinct identifiers tracked in memory (default: 100000)</param>
+        public RateLimiter(int maxAttempts = 5, int windowDurationSeconds = 60, int maxTrackedIdentifiers = 100000)
         {
             if (maxAttempts < 1)
                 throw new ArgumentOutOfRangeException(nameof(maxAttempts), "Must be at least 1");
             if (windowDurationSeconds < 1)
                 throw new ArgumentOutOfRangeException(nameof(windowDurationSeconds), "Must be at least 1");
+            if (maxTrackedIdentifiers < 1)
+                throw new ArgumentOutOfRangeException(nameof(maxTrackedIdentifiers), "Must be at least 1");
 
             _maxAttempts = maxAttempts;
             _windowDuration = TimeSpan.FromSeconds(windowDurationSeconds);
-            _attemptHistory = new ConcurrentDictionary<string, List<DateTime>>();
+            _maxTrackedIdentifiers = maxTrackedIdentifiers;
+            _attemptHistory = new ConcurrentDictionary<string, AttemptBucket>();
         }
 
         /// <summary>
@@ -47,15 +58,18 @@ namespace SecurityHelperLibrary
             PeriodicCleanup();
             var now = DateTime.UtcNow;
 
-            var attempts = _attemptHistory.GetOrAdd(identifier, _ => new List<DateTime>());
-            lock (attempts)
-            {
-                attempts.RemoveAll(t => now - t > _windowDuration);
+            if (!TryGetOrCreateBucket(identifier, out var bucket))
+                return false;
 
-                if (attempts.Count >= _maxAttempts)
+            lock (bucket.SyncRoot)
+            {
+                while (bucket.Attempts.Count > 0 && now - bucket.Attempts.Peek() > _windowDuration)
+                    bucket.Attempts.Dequeue();
+
+                if (bucket.Attempts.Count >= _maxAttempts)
                     return false;
 
-                attempts.Add(now);
+                bucket.Attempts.Enqueue(now);
                 return true;
             }
         }
@@ -70,18 +84,20 @@ namespace SecurityHelperLibrary
             if (string.IsNullOrWhiteSpace(identifier))
                 throw new ArgumentNullException(nameof(identifier));
 
-            if (!_attemptHistory.TryGetValue(identifier, out var attempts))
+            if (!_attemptHistory.TryGetValue(identifier, out var bucket))
                 return _maxAttempts;
 
-            List<DateTime> validAttempts;
-            lock (attempts)
+            int validCount;
+            var now = DateTime.UtcNow;
+            lock (bucket.SyncRoot)
             {
-                validAttempts = attempts
-                    .Where(t => DateTime.UtcNow - t <= _windowDuration)
-                    .ToList();
+                while (bucket.Attempts.Count > 0 && now - bucket.Attempts.Peek() > _windowDuration)
+                    bucket.Attempts.Dequeue();
+
+                validCount = bucket.Attempts.Count;
             }
 
-            return Math.Max(0, _maxAttempts - validAttempts.Count);
+            return Math.Max(0, _maxAttempts - validCount);
         }
 
         /// <summary>
@@ -107,15 +123,35 @@ namespace SecurityHelperLibrary
         /// <summary>
         /// Periodic cleanup of expired attempts to prevent memory leaks.
         /// </summary>
-        private void PeriodicCleanup()
+        private bool TryGetOrCreateBucket(string identifier, out AttemptBucket bucket)
+        {
+            if (_attemptHistory.TryGetValue(identifier, out bucket))
+                return true;
+
+            if (_attemptHistory.Count >= _maxTrackedIdentifiers)
+            {
+                PeriodicCleanup(force: true);
+
+                if (_attemptHistory.Count >= _maxTrackedIdentifiers)
+                {
+                    bucket = null;
+                    return false;
+                }
+            }
+
+            bucket = _attemptHistory.GetOrAdd(identifier, _ => new AttemptBucket());
+            return true;
+        }
+
+        private void PeriodicCleanup(bool force = false)
         {
             // Cleanup every 5 minutes
-            if (DateTime.UtcNow - _lastCleanup < TimeSpan.FromMinutes(5))
+            if (!force && DateTime.UtcNow - _lastCleanup < TimeSpan.FromMinutes(5))
                 return;
 
             lock (_cleanupLock)
             {
-                if (DateTime.UtcNow - _lastCleanup < TimeSpan.FromMinutes(5))
+                if (!force && DateTime.UtcNow - _lastCleanup < TimeSpan.FromMinutes(5))
                     return;
 
                 var now = DateTime.UtcNow;
@@ -123,10 +159,12 @@ namespace SecurityHelperLibrary
 
                 foreach (var kvp in _attemptHistory)
                 {
-                    lock (kvp.Value)
+                    lock (kvp.Value.SyncRoot)
                     {
-                        kvp.Value.RemoveAll(t => now - t > _windowDuration);
-                        if (kvp.Value.Count == 0)
+                        while (kvp.Value.Attempts.Count > 0 && now - kvp.Value.Attempts.Peek() > _windowDuration)
+                            kvp.Value.Attempts.Dequeue();
+
+                        if (kvp.Value.Attempts.Count == 0)
                             keysToClean.Add(kvp.Key);
                     }
                 }
