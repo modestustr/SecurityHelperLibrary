@@ -239,7 +239,7 @@ A: NuGet packages are signed. Verify using: `dotnet nuget verify`
 
 ## Contact
 
-- **Security Reports**: security@modestustr.com
+- **Security Reports**: security@modestusnet.com
 - **GitHub Issues**: Bug reports (non-security): https://github.com/modestustr/SecurityHelperLibrary/issues
 - **Discussions**: Architecture/design: https://github.com/modestustr/SecurityHelperLibrary/discussions
 
