@@ -11,6 +11,8 @@ This project implements a simple but production-ready user authentication system
 - ✅ **REST API**: Clean endpoints for registration, login, and validation
 - ✅ **Comprehensive Documentation**: Every piece of code is thoroughly commented
 - ✅ **Best Practices**: Follows OWASP guidelines for authentication
+- ✅ **Rate Limiting**: Built-in `RateLimiter` throttles repeated register/login attempts (demonstrated below)
+- ✅ **Derived Key Material (HKDF)**: Uses `KeyDerivation.DeriveMultipleKeys` to produce session encryption/authentication keys for downstream scenarios
 
 ## 🏗️ Architecture
 
@@ -65,6 +67,20 @@ bool isValid = securityHelper.VerifyPasswordWithArgon2(plainPassword, storedHash
 - Email: Basic format validation
 - Password: Minimum 6 characters (you may want stronger requirements)
 - All inputs sanitized before database operations
+
+### 5. **Rate Limiting with RateLimiter**
+- Each request to `/api/auth/register` and `/api/auth/login` runs through the `RateLimiter` helper from the library, but each limiter tracks both the normalized username/email and the client IP address.
+- Register attempts are limited to 3 hits per minute per username plus a higher per-IP ceiling, while logins are throttled to 5 attempts per user and 10 per IP per minute.
+- Because `RateLimiter` is thread-safe, you can instantiate shared limiters as shown in `AuthController` and guard multiple endpoints without wiring middleware.
+
+### 6. **Derived Key Material (HKDF)**
+- After a successful login the sample now derives two 32-byte keys from a freshly generated session seed (not from any stored hash) via `KeyDerivation.DeriveMultipleKeys` so you can demonstrate key separation for encryption vs. authentication.
+- The `DerivedKeys` section in the JSON response shows the Base64-encoded results; treat them as illustrative placeholders for how you might bootstrap session tokens, AK/SK pairs, or key-wrapping secrets.
+- Because the sample references the main library project directly, this derivation automatically uses the latest HKDF fallback/`.NET 8` path without extra wiring.
+
+### 7. **Span-safe Password Handling**
+- The service now hashes passwords with `HashPasswordWithPBKDF2` using `password.AsSpan()` and a freshly generated salt (stored in the formatted hash string) to minimize the window where plaintext characters live in memory.
+- The same `ReadOnlySpan<char>` overload is used in `VerifyPasswordAsync` so that the verifier never materializes a second string copy.
 
 ## 🚀 Getting Started
 
@@ -197,32 +213,68 @@ curl -X POST https://localhost:5001/api/auth/login \
 }
 ```
 
+### 5. Admin Security Incident Feed
+**GET** `/api/security-audit/incidents?take=100`
+
+This endpoint returns internal security incident codes captured by `SecurityHelper` (for example malformed PBKDF2 payload attempts). It does not expose attacker input payloads.
+
+Access is protected by JWT role authorization: only tokens with `role=Admin` are accepted.
+
+Admin role assignment is configured via `SecurityAudit:AdminUsers` in `appsettings.json`.
+
+**Example Response:**
+```json
+[
+  {
+    "timestampUtc": "2026-03-03T16:31:09.125Z",
+    "code": "PBKDF2_SPAN_FORMAT_PARTS"
+  },
+  {
+    "timestampUtc": "2026-03-03T16:31:12.488Z",
+    "code": "AES_GCM_DECRYPT_PARSE|FormatException"
+  }
+]
+```
+
+**Step 1: Login and get token**
+```bash
+curl -X POST "https://localhost:5001/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "usernameOrEmail": "admin",
+    "password": "your-password"
+  }'
+```
+
+Read `accessToken` from the login response.
+
+**Step 2: Call admin incidents endpoint with Bearer token**
+```bash
+curl -X GET "https://localhost:5001/api/security-audit/incidents?take=50" \
+  -H "Authorization: Bearer <accessToken>"
+```
+
 ## 📝 Code Highlights
 
 ### UserService - Password Hashing
 ```csharp
-// From UserService.cs - Registration
-public async Task<(bool Success, string Message, User? User)> RegisterUserAsync(...)
+string salt = _securityHelper.GenerateSalt();
+byte[] saltBytes = Convert.FromBase64String(salt);
+string passwordHash = _securityHelper.HashPasswordWithPBKDF2(
+  password.AsSpan(),
+  saltBytes,
+  HashAlgorithmName.SHA256,
+  iterations: 100000,
+  hashLength: 32);
+Array.Clear(saltBytes, 0, saltBytes.Length);
+string storedHash = $"{HashAlgorithmName.SHA256.Name}|100000|{salt}|{passwordHash}";
+
+// Store user with hashed password
+var newUser = new User
 {
-    // Validate input
-    if (string.IsNullOrWhiteSpace(password))
-        return (false, "Password is required.", null);
-
-    // Hash password using Argon2 (from SecurityHelperLibrary)
-    string passwordHash = _securityHelper.HashPasswordWithArgon2(password);
-
-    // Store user with hashed password
-    var newUser = new User
-    {
-        Username = username,
-        PasswordHash = passwordHash  // Never the plaintext!
-    };
-
-    _dbContext.Users.Add(newUser);
-    await _dbContext.SaveChangesAsync();
-
-    return (true, "User registered successfully.", newUser);
-}
+  Username = username,
+  PasswordHash = storedHash
+};
 ```
 
 ### UserService - Password Verification
@@ -259,6 +311,17 @@ builder.Services.AddScoped<IUserService, UserService>();
 // - ApplicationDbContext (for database access)
 // - ISecurityHelper (for password operations)
 ```
+
+## 🔁 Keeping the Sample in Sync
+
+- The sample project references `SecurityHelperLibrary.csproj` directly, so rebuilding the solution already uses the latest library code. Keep the reference as-is and avoid copying DLLs manually.
+- Whenever the library ships a new feature (like `RateLimiter` or `KeyDerivation`), update this README and the controller/service logic to highlight it, just like we did for 2.1.2.
+- Consider adding a simple smoke test or integration script that runs `dotnet run` in the sample after major changes to ensure the walkthrough still works.
+
+## ⚠️ Security Warning: Registration Enumeration
+
+- The sample always returns `200 OK` with a generic message when an account already exists even though the underlying service differentiates username/email collisions. This prevents attackers from enumerating valid accounts via timing or error code differences.
+- In a production system you should still notify the real user (e.g., send an email) whenever someone resubmits their username or email so they can take action.
 
 ## 🗄️ Database Schema
 
@@ -377,6 +440,16 @@ curl -X POST https://localhost:5001/api/auth/login \
   -d '{"usernameOrEmail":"test@example.com","password":"Test123!"}'
 ```
 
+### Automated smoke test script
+
+Run the helper script in the repository root when you want a repeatable set of HTTP requests with no manual curl commands.
+
+```powershell
+.\scripts\run-sample-tests.ps1
+```
+
+By default the script starts the sample on HTTP port 5000, registers a fresh test user, checks availability, logs in, and tears the process down. Pass `-PreferHttps` if you want to exercise `https://localhost:5001`, or override `-HttpPort`/`-HttpsPort` if those bindings conflict with other services.
+
 ## 📄 Files Overview
 
 | File | Purpose |
@@ -399,6 +472,7 @@ curl -X POST https://localhost:5001/api/auth/login \
 - ✅ Async operations (no thread blocking)
 - ✅ Database initialization handled
 - ✅ HTTPS recommended for production
+- ✅ Generic registration responses to prevent user enumeration (sample logs the attempt internally)
 
 ## 📖 References
 

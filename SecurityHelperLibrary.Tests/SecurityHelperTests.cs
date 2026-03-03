@@ -274,13 +274,13 @@ namespace SecurityHelperLibrary.Tests
         }
 
         [Fact]
-        public void VerifyPasswordWithPBKDF2_WithInvalidFormat_ThrowsFormatException()
+        public void VerifyPasswordWithPBKDF2_WithInvalidFormat_ThrowsCryptographicException()
         {
             // Arrange
             string invalidHash = "invalid|format";
 
             // Act & Assert
-            Assert.Throws<FormatException>(() => _securityHelper.VerifyPasswordWithPBKDF2("password", invalidHash));
+            Assert.Throws<CryptographicException>(() => _securityHelper.VerifyPasswordWithPBKDF2("password", invalidHash));
         }
 
         [Fact]
@@ -323,13 +323,13 @@ namespace SecurityHelperLibrary.Tests
         }
 
         [Fact]
-        public void VerifyPasswordWithPBKDF2_WithInvalidIterationValue_ThrowsFormatException()
+        public void VerifyPasswordWithPBKDF2_WithInvalidIterationValue_ThrowsCryptographicException()
         {
             // Arrange
             string invalid = "SHA256|NaN|c2FsdA==|aGFzaA==";
 
             // Act & Assert
-            Assert.Throws<FormatException>(() => _securityHelper.VerifyPasswordWithPBKDF2("password", invalid));
+            Assert.Throws<CryptographicException>(() => _securityHelper.VerifyPasswordWithPBKDF2("password", invalid));
         }
 #endif
 
@@ -447,14 +447,14 @@ namespace SecurityHelperLibrary.Tests
         }
 
         [Fact]
-        public void EncryptStringGCM_WithInvalidKeySize_ThrowsArgumentException()
+        public void EncryptStringGCM_WithInvalidKeySize_ThrowsCryptographicException()
         {
             // Arrange
             string plainText = "SensitiveData";
             byte[] invalidKey = new byte[16]; // Should be 32 bytes
 
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => _securityHelper.EncryptStringGCM(plainText, invalidKey));
+            Assert.Throws<CryptographicException>(() => _securityHelper.EncryptStringGCM(plainText, invalidKey));
         }
 
         [Fact]
@@ -473,18 +473,18 @@ namespace SecurityHelperLibrary.Tests
         }
 
         [Fact]
-        public void DecryptStringGCM_WithInvalidFormat_ThrowsFormatException()
+        public void DecryptStringGCM_WithInvalidFormat_ThrowsCryptographicException()
         {
             // Arrange
             byte[] key = _securityHelper.GenerateSymmetricKey();
             string invalidFormat = "invalid|format";
 
             // Act & Assert
-            Assert.Throws<FormatException>(() => _securityHelper.DecryptStringGCM(invalidFormat, key));
+            Assert.Throws<CryptographicException>(() => _securityHelper.DecryptStringGCM(invalidFormat, key));
         }
 
         [Fact]
-        public void DecryptStringGCM_WithInvalidNonceSize_ThrowsFormatException()
+        public void DecryptStringGCM_WithInvalidNonceSize_ThrowsCryptographicException()
         {
             // Arrange
             string plainText = "SensitiveData";
@@ -501,11 +501,11 @@ namespace SecurityHelperLibrary.Tests
             string invalid = $"{Convert.ToBase64String(shortNonce)}|{Convert.ToBase64String(validTag)}|{Convert.ToBase64String(validCipher)}";
 
             // Act & Assert
-            Assert.Throws<FormatException>(() => _securityHelper.DecryptStringGCM(invalid, key));
+            Assert.Throws<CryptographicException>(() => _securityHelper.DecryptStringGCM(invalid, key));
         }
 
         [Fact]
-        public void DecryptStringGCM_WithInvalidTagSize_ThrowsFormatException()
+        public void DecryptStringGCM_WithInvalidTagSize_ThrowsCryptographicException()
         {
             // Arrange
             string plainText = "SensitiveData";
@@ -522,7 +522,7 @@ namespace SecurityHelperLibrary.Tests
             string invalid = $"{Convert.ToBase64String(validNonce)}|{Convert.ToBase64String(shortTag)}|{Convert.ToBase64String(validCipher)}";
 
             // Act & Assert
-            Assert.Throws<FormatException>(() => _securityHelper.DecryptStringGCM(invalid, key));
+            Assert.Throws<CryptographicException>(() => _securityHelper.DecryptStringGCM(invalid, key));
         }
 
         [Fact]
@@ -564,7 +564,7 @@ namespace SecurityHelperLibrary.Tests
         }
 
         [Fact]
-        public void DecryptStringGCM_WithModifiedCiphertext_ThrowsException()
+        public void DecryptStringGCM_WithModifiedCiphertext_ThrowsCryptographicException()
         {
             // Arrange
             string plainText = "SensitiveData";
@@ -576,7 +576,7 @@ namespace SecurityHelperLibrary.Tests
             string modifiedEncrypted = $"{parts[0]}|{parts[1]}|InvalidCiphertext";
 
             // Act & Assert
-            Assert.Throws<FormatException>(() => _securityHelper.DecryptStringGCM(modifiedEncrypted, key));
+            Assert.Throws<CryptographicException>(() => _securityHelper.DecryptStringGCM(modifiedEncrypted, key));
         }
 #else
         [Fact]

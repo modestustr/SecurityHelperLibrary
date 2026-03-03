@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SecurityHelperLibrary.Sample.Data;
 using SecurityHelperLibrary.Sample.Models;
+using System.Security.Cryptography;
 
 namespace SecurityHelperLibrary.Sample.Services;
 
@@ -155,16 +156,19 @@ public class UserService : IUserService
 
         try
         {
-            // HASH: Use PBKDF2 from SecurityHelperLibrary to hash the password
-            // Use the overload that automatically generates a random salt
-            // and returns it via the 'out' parameter
-            string passwordHash = _securityHelper.HashPasswordWithPBKDF2(
-                password, 
-                out string salt, 
-                System.Security.Cryptography.HashAlgorithmName.SHA256, 
-                iterations: 100000);
+            const int iterations = 100000;
+            const int hashLength = 32;
+            string salt = _securityHelper.GenerateSalt();
+            byte[] saltBytes = Convert.FromBase64String(salt);
+            string hashBase64 = _securityHelper.HashPasswordWithPBKDF2(
+                password.AsSpan(),
+                saltBytes,
+                System.Security.Cryptography.HashAlgorithmName.SHA256,
+                iterations: iterations,
+                hashLength: hashLength);
+            Array.Clear(saltBytes, 0, saltBytes.Length);
+            string passwordHash = $"{System.Security.Cryptography.HashAlgorithmName.SHA256.Name}|{iterations}|{salt}|{hashBase64}";
 
-            // CREATE: New user record
             var newUser = new User
             {
                 Username = username.Trim(),
@@ -303,9 +307,7 @@ public class UserService : IUserService
 
         try
         {
-            // VERIFY: Delegate to SecurityHelperLibrary's PBKDF2 verification
-            // This method is synchronous, but we wrap it in a Task to maintain async consistency
-            return await Task.Run(() => _securityHelper.VerifyPasswordWithPBKDF2(plainPassword, storedHash));
+            return await Task.Run(() => _securityHelper.VerifyPasswordWithPBKDF2(plainPassword.AsSpan(), storedHash));
         }
         catch
         {

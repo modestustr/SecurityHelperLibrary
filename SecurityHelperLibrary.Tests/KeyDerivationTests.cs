@@ -27,6 +27,38 @@ namespace SecurityHelperLibrary.Tests
 
         [Fact]
         [Trait("Category", "KeyDerivation")]
+        public void KeyDerivation_DeriveKeyMaterial_ThrowsOnNullInputMaterial()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                KeyDerivation.DeriveKeyMaterial(HashAlgorithmName.SHA256, null, salt: null, info: null, outputLength: 32));
+        }
+
+        [Fact]
+        [Trait("Category", "KeyDerivation")]
+        public void KeyDerivation_MatchesRfc5869TestVectors()
+        {
+            byte[] ikm = new byte[22];
+            for (int i = 0; i < ikm.Length; i++)
+            {
+                ikm[i] = 0x0b;
+            }
+
+            byte[] salt = HexToBytes("000102030405060708090a0b0c");
+            byte[] info = HexToBytes("f0f1f2f3f4f5f6f7f8f9");
+            byte[] expectedOkm = HexToBytes("3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865");
+
+            byte[] derived = KeyDerivation.DeriveKeyMaterial(
+                HashAlgorithmName.SHA256,
+                ikm,
+                salt,
+                info,
+                outputLength: 42);
+
+            Assert.Equal(expectedOkm, derived);
+        }
+
+        [Fact]
+        [Trait("Category", "KeyDerivation")]
         public void KeyDerivation_LegacyHkdfExpand_CompatibleWithDeriveKeyMaterial()
         {
             byte[] ikm = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -187,6 +219,19 @@ namespace SecurityHelperLibrary.Tests
 
         [Fact]
         [Trait("Category", "KeyDerivation")]
+        public void KeyDerivation_DeriveMultipleKeys_ThrowsOnKeyCountBoundary()
+        {
+            byte[] masterKey = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                KeyDerivation.DeriveMultipleKeys(HashAlgorithmName.SHA256, masterKey, keyCount: 0, keyLength: 32));
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                KeyDerivation.DeriveMultipleKeys(HashAlgorithmName.SHA256, masterKey, keyCount: 256, keyLength: 32));
+        }
+
+        [Fact]
+        [Trait("Category", "KeyDerivation")]
         public void KeyDerivation_InvalidInput()
         {
             byte[] validKey = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
@@ -235,6 +280,22 @@ namespace SecurityHelperLibrary.Tests
             Assert.Equal(32, integrityKey.Length);
             Assert.NotEqual(encryptionKey, signingKey);
             Assert.NotEqual(signingKey, integrityKey);
+        }
+
+        private static byte[] HexToBytes(string hex)
+        {
+            if (hex == null)
+                throw new ArgumentNullException(nameof(hex));
+            if (hex.Length % 2 != 0)
+                throw new ArgumentException("Hex string length must be even", nameof(hex));
+
+            byte[] bytes = new byte[hex.Length / 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+            }
+
+            return bytes;
         }
     }
 }

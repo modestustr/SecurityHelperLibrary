@@ -6,9 +6,9 @@
 [![Security Pentest Suite](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml/badge.svg)](https://github.com/modestustr/SecurityHelperLibrary/actions/workflows/security-tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
-Version: 2.1.1
+Version: 2.1.2
 
-SecurityHelperLibrary is a production-grade cryptographic helper library providing secure password hashing (PBKDF2, Argon2id), HMAC computation, and AES-GCM authenticated encryption. **v2.1.1** adds reliability fixes for rate limiting, AES-GCM edge cases, and release automation while preserving multi-target support (`net481` + `net8.0`).
+SecurityHelperLibrary is a production-grade cryptographic helper library providing secure password hashing (PBKDF2, Argon2id), HMAC computation, and AES-GCM authenticated encryption. **v2.1.2** finalizes the latest hardening cycle with improved secret handling, stronger architectural separation, and role-based security audit access while preserving multi-target support (`net481` + `net8.0`).
 
 ## Why This Library?
 
@@ -33,19 +33,20 @@ var helper = new SecurityHelper();
 var isValid = helper.VerifyPasswordWithPBKDF2("MyPassword", storedHash);
 ```
 
-## What's Changed (v2.1.1)
+## What's Changed (v2.1.2)
 
-### Fixed
-- **RateLimiter Reliability**: Fixed deterministic limit behavior and thread-safety under parallel access.
-- **AES-GCM Round-Trip**: Correct handling for empty plaintext encryption/decryption scenarios.
+### Security
+- **Incident Telemetry + Ketum Errors**: Internal security incident codes are logged while callers still receive generic cryptographic errors.
+- **JWT Key Memory Hygiene (Sample)**: Removed long-lived signing key field; temporary signing bytes are cleared after token creation.
+- **Argon2 Resource Guard**: Added upper bound for parallelism to reduce resource-exhaustion risk.
 
-### CI/CD
-- **Multi-Target Packaging**: CI packaging preserves `net481` + `net8.0` support (no framework lockout).
-- **Publish Stability**: Deduplicated release trigger path and added safe duplicate-push handling.
-- **Release Permissions**: Added explicit workflow permissions required for GitHub Release creation.
+### Architecture
+- **Helper-Centric Crypto Policy**: Added HKDF multi-key derivation facade to `ISecurityHelper` and removed obsolete alias contract.
+- **Controller Decoupling (Sample)**: `AuthController` now uses `ISecurityHelper` for key generation/derivation/cleanup and no longer depends directly on cryptographic namespace usage.
+- **Admin Access Model (Sample)**: Security incident feed now uses JWT + role-based authorization instead of shared header key.
 
-### Documentation
-- README, CHANGELOG, and RELEASE_NOTES were aligned for `2.1.1` so NuGet/GitHub release pages reflect the same update scope.
+### Validation
+- Full suite passed on both targets: `net481` and `net8.0`.
 
 ## Security Foundation (v2.1.0)
 
@@ -92,7 +93,7 @@ New or changed public surface (high level):
 Install from NuGet:
 
 ```bash
-dotnet add package SecurityHelperLibrary --version 2.1.1
+dotnet add package SecurityHelperLibrary --version 2.1.2
 ```
 
 Basic usage (example):

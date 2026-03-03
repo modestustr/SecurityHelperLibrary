@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using SecurityHelperLibrary;
 using SecurityHelperLibrary.Sample.Data;
 using SecurityHelperLibrary.Sample.Models;
 using SecurityHelperLibrary.Sample.Services;
+using System.Collections.Generic;
+using System.Net;
 
 namespace SecurityHelperLibrary.Sample.Controllers;
 
@@ -44,15 +47,23 @@ public class AuthController : ControllerBase
     /// Logger for recording events and errors (optional, for debugging).
     /// </summary>
     private readonly ILogger<AuthController> _logger;
+    private readonly IJwtTokenService _jwtTokenService;
+    private readonly ISecurityHelper _securityHelper;
+    private static readonly RateLimiter RegisterUsernameRateLimiter = new(maxAttempts: 3, windowDurationSeconds: 60);
+    private static readonly RateLimiter RegisterIpRateLimiter = new(maxAttempts: 20, windowDurationSeconds: 60);
+    private static readonly RateLimiter LoginUsernameRateLimiter = new(maxAttempts: 5, windowDurationSeconds: 60);
+    private static readonly RateLimiter LoginIpRateLimiter = new(maxAttempts: 10, windowDurationSeconds: 60);
 
     /// <summary>
     /// Constructor - dependencies are injected automatically by ASP.NET Core DI container.
     /// </summary>
-    public AuthController(IUserService userService, ApplicationDbContext dbContext, ILogger<AuthController> logger)
+    public AuthController(IUserService userService, ApplicationDbContext dbContext, ILogger<AuthController> logger, IJwtTokenService jwtTokenService, ISecurityHelper securityHelper)
     {
         _userService = userService ?? throw new ArgumentNullException(nameof(userService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _jwtTokenService = jwtTokenService ?? throw new ArgumentNullException(nameof(jwtTokenService));
+        _securityHelper = securityHelper ?? throw new ArgumentNullException(nameof(securityHelper));
     }
 
     /// <summary>
@@ -113,8 +124,8 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
     {
         // INPUT VALIDATION: Check for null request
@@ -127,6 +138,22 @@ public class AuthController : ControllerBase
             });
         }
 
+        if (string.IsNullOrWhiteSpace(request.Username))
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "Username is required."
+            });
+        }
+
+        string registerIdentifier = NormalizeIdentifier(request.Username);
+        string registerIp = GetClientIp();
+        if (!RegisterUsernameRateLimiter.IsAllowed(registerIdentifier) || !RegisterIpRateLimiter.IsAllowed(registerIp))
+        {
+            return TooManyAttempts("Too many registration attempts. Please wait a minute before trying again.");
+        }
+
         // CALL SERVICE: Perform registration with all business logic
         var (success, message, user) = await _userService.RegisterUserAsync(
             request.Username,
@@ -137,12 +164,11 @@ public class AuthController : ControllerBase
 
         if (!success)
         {
-            // Return 409 Conflict if user already exists, else 400 Bad Request
-            int statusCode = message.Contains("already") ? StatusCodes.Status409Conflict : StatusCodes.Status400BadRequest;
-            return StatusCode(statusCode, new AuthResponse
+            _logger.LogWarning("Registration attempt for {Username} blocked: {Message}", request.Username, message);
+            return Ok(new AuthResponse
             {
                 Success = false,
-                Message = message
+                Message = "If an account already exists we have recorded the attempt and will notify the owner."
             });
         }
 
@@ -233,6 +259,22 @@ public class AuthController : ControllerBase
             });
         }
 
+        if (string.IsNullOrWhiteSpace(request.UsernameOrEmail) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "Username/email and password are required."
+            });
+        }
+
+        string loginIdentifier = NormalizeIdentifier(request.UsernameOrEmail);
+        string clientIp = GetClientIp();
+        if (!LoginUsernameRateLimiter.IsAllowed(loginIdentifier) || !LoginIpRateLimiter.IsAllowed(clientIp))
+        {
+            return TooManyAttempts("Too many login attempts. Try again in a minute.");
+        }
+
         // CALL SERVICE: Authenticate user
         var (success, message, user) = await _userService.AuthenticateUserAsync(
             request.UsernameOrEmail,
@@ -241,7 +283,7 @@ public class AuthController : ControllerBase
 
         if (!success)
         {
-            // Return 401 Unauthorized on failed authentication
+            _logger.LogWarning("Failed login for {Identifier} from {Ip}: {Message}", loginIdentifier, clientIp, message);
             return Unauthorized(new AuthResponse
             {
                 Success = false,
@@ -249,15 +291,30 @@ public class AuthController : ControllerBase
             });
         }
 
-        // MAP TO DTO: Convert User entity to UserDto (excludes password hash)
         var userDto = MapToUserDto(user!);
+        JwtTokenResult token = _jwtTokenService.CreateToken(user!);
 
-        // RETURN: 200 OK with user data
+        byte[] sessionSeed = _securityHelper.GenerateSymmetricKey(32);
+        IEnumerable<DerivedKeyDto> derivedKeys;
+        try
+        {
+            derivedKeys = BuildDerivedKeys(sessionSeed, "session");
+        }
+        finally
+        {
+            _securityHelper.ClearSensitiveData(sessionSeed);
+        }
+
         return Ok(new AuthResponse
         {
             Success = true,
             Message = message,
-            User = userDto
+            User = userDto,
+            DerivedKeys = derivedKeys,
+            AccessToken = token.AccessToken,
+            TokenType = "Bearer",
+            AccessTokenExpiresAtUtc = token.ExpiresAtUtc,
+            Role = token.Role
         });
     }
 
@@ -362,5 +419,76 @@ public class AuthController : ControllerBase
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt
         };
+    }
+
+    private IEnumerable<DerivedKeyDto> BuildDerivedKeys(byte[] masterSecret, string context)
+    {
+        byte[][] keys = _securityHelper.DeriveMultipleKeys(
+            masterSecret,
+            keyCount: 2,
+            keyLength: 32,
+            context: context);
+
+        try
+        {
+            return new[]
+            {
+                new DerivedKeyDto
+                {
+                    Purpose = "SessionEncryption",
+                    Base64Key = Convert.ToBase64String(keys[0])
+                },
+                new DerivedKeyDto
+                {
+                    Purpose = "SessionAuthentication",
+                    Base64Key = Convert.ToBase64String(keys[1])
+                }
+            };
+        }
+        finally
+        {
+            foreach (byte[] key in keys)
+            {
+                if (key != null && key.Length > 0)
+                {
+                    _securityHelper.ClearSensitiveData(key);
+                }
+            }
+        }
+    }
+
+    private static string NormalizeIdentifier(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Trim().ToLowerInvariant();
+    }
+
+    private string GetClientIp()
+    {
+        var remoteIp = HttpContext?.Connection?.RemoteIpAddress;
+        if (remoteIp == null)
+        {
+            return "unknown";
+        }
+
+        if (remoteIp.IsIPv4MappedToIPv6)
+        {
+            return remoteIp.MapToIPv4().ToString() ?? "unknown";
+        }
+
+        return remoteIp.ToString() ?? "unknown";
+    }
+
+    private ActionResult<AuthResponse> TooManyAttempts(string message)
+    {
+        return StatusCode(StatusCodes.Status429TooManyRequests, new AuthResponse
+        {
+            Success = false,
+            Message = message
+        });
     }
 }

@@ -8,7 +8,7 @@ This library is used in banking, finance, and healthcare systems. **Security is 
 
 ### Security Issues
 **DO NOT** open a public GitHub issue for security vulnerabilities. Instead:
-1. Email: security@modestustr.com
+1. Email: security@modestusnet.com
 2. Or visit: [GitHub Security Advisory](https://github.com/modestustr/SecurityHelperLibrary/security/advisories)
 
 Security reports are handled confidentially and promptly.
