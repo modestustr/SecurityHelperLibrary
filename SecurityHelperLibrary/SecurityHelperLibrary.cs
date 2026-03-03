@@ -2,6 +2,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.ComponentModel;
+using System.Threading;
 using Isopoh.Cryptography.Argon2;
 
 namespace SecurityHelperLibrary
@@ -16,17 +17,62 @@ namespace SecurityHelperLibrary
         private const int MinHashLengthBytes = 16;
         private const int MinArgon2Iterations = 3;
         private const int MinArgon2MemoryKb = 65536;
+        private const int BaselineArgon2Iterations = 4;
+        private const int BaselineArgon2MemoryKb = 131072;
+        private const int BaselineArgon2DegreeOfParallelism = 4;
+        private const int BaselineArgon2HashLength = 32;
         private const int MaxArgon2DegreeOfParallelism = 64;
         private readonly Action<string> _securityIncidentLogger;
+        private readonly int _defaultArgon2Iterations;
+        private readonly int _defaultArgon2MemoryKb;
+        private readonly int _defaultArgon2DegreeOfParallelism;
+        private readonly int _defaultArgon2HashLength;
 
         public SecurityHelper()
-            : this(null)
+            : this((Action<string>)null)
         {
         }
 
         public SecurityHelper(Action<string> securityIncidentLogger)
+            : this(securityIncidentLogger, null)
+        {
+        }
+
+        public SecurityHelper(SecurityHelperOptions options)
+            : this(null, options)
+        {
+        }
+
+        public SecurityHelper(Action<string> securityIncidentLogger, SecurityHelperOptions options)
         {
             _securityIncidentLogger = securityIncidentLogger;
+            if (options == null)
+            {
+                _defaultArgon2Iterations = BaselineArgon2Iterations;
+                _defaultArgon2MemoryKb = BaselineArgon2MemoryKb;
+                _defaultArgon2DegreeOfParallelism = BaselineArgon2DegreeOfParallelism;
+                _defaultArgon2HashLength = BaselineArgon2HashLength;
+                return;
+            }
+
+            _defaultArgon2Iterations = options.Argon2DefaultIterations >= MinArgon2Iterations
+                ? options.Argon2DefaultIterations
+                : MinArgon2Iterations;
+
+            _defaultArgon2MemoryKb = options.Argon2DefaultMemoryKb >= MinArgon2MemoryKb
+                ? options.Argon2DefaultMemoryKb
+                : MinArgon2MemoryKb;
+
+            _defaultArgon2DegreeOfParallelism = options.Argon2DefaultDegreeOfParallelism >= 1
+                ? options.Argon2DefaultDegreeOfParallelism
+                : 1;
+
+            if (_defaultArgon2DegreeOfParallelism > MaxArgon2DegreeOfParallelism)
+                _defaultArgon2DegreeOfParallelism = MaxArgon2DegreeOfParallelism;
+
+            _defaultArgon2HashLength = options.Argon2DefaultHashLength >= MinHashLengthBytes
+                ? options.Argon2DefaultHashLength
+                : BaselineArgon2HashLength;
         }
 
         // --- IMMUTABLE WORKING METHODS ---
@@ -234,6 +280,7 @@ namespace SecurityHelperLibrary
 #endif
         public string HashPasswordWithArgon2(string password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32)
         {
+            ApplyArgon2Defaults(ref iterations, ref memoryKb, ref degreeOfParallelism, ref hashLength);
 #if NET6_0_OR_GREATER
             if (string.IsNullOrEmpty(password))
                 throw new ArgumentException("Password cannot be null or empty.", nameof(password));
@@ -290,6 +337,7 @@ namespace SecurityHelperLibrary
         /// </summary>
         public string HashPasswordWithArgon2(ReadOnlySpan<char> password, string salt, int iterations = 4, int memoryKb = 131072, int degreeOfParallelism = 4, int hashLength = 32)
         {
+            ApplyArgon2Defaults(ref iterations, ref memoryKb, ref degreeOfParallelism, ref hashLength);
             if (password.Length == 0)
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             if (string.IsNullOrWhiteSpace(salt))
@@ -689,17 +737,42 @@ namespace SecurityHelperLibrary
             return new CryptographicException(GenericSecurityErrorMessage);
         }
 
+        private void ApplyArgon2Defaults(ref int iterations, ref int memoryKb, ref int degreeOfParallelism, ref int hashLength)
+        {
+            if (iterations == BaselineArgon2Iterations)
+                iterations = _defaultArgon2Iterations;
+
+            if (memoryKb == BaselineArgon2MemoryKb)
+                memoryKb = _defaultArgon2MemoryKb;
+
+            if (degreeOfParallelism == BaselineArgon2DegreeOfParallelism)
+                degreeOfParallelism = _defaultArgon2DegreeOfParallelism;
+
+            if (hashLength == BaselineArgon2HashLength)
+                hashLength = _defaultArgon2HashLength;
+        }
+
         private void LogSecurityIncident(string incidentCode, Exception exception)
         {
             if (_securityIncidentLogger == null)
                 return;
 
+            string payload = exception == null
+                ? $"SEC_EVT|code={incidentCode}|exception=None"
+                : $"SEC_EVT|code={incidentCode}|exception={exception.GetType().Name}";
+
             try
             {
-                if (exception == null)
-                    _securityIncidentLogger.Invoke(incidentCode);
-                else
-                    _securityIncidentLogger.Invoke($"{incidentCode}|{exception.GetType().Name}");
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    try
+                    {
+                        _securityIncidentLogger.Invoke(payload);
+                    }
+                    catch
+                    {
+                    }
+                });
             }
             catch
             {

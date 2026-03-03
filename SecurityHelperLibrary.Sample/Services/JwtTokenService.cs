@@ -64,13 +64,24 @@ public sealed class JwtTokenService : IJwtTokenService
             claims.Add(new Claim(JwtRegisteredClaimNames.Email, user.Email));
         }
 
-        string signingKey = _configuration["SecurityAudit:Jwt:SigningKey"] ?? "change-this-signing-key-at-least-32-characters";
-        byte[] keyBytes = Encoding.UTF8.GetBytes(signingKey);
+        string signingKeyBase64 = _configuration["SecurityAudit:Jwt:SigningKeyBase64"];
+        if (string.IsNullOrWhiteSpace(signingKeyBase64) || signingKeyBase64.StartsWith("__SET_VIA_ENV", StringComparison.Ordinal))
+            throw new InvalidOperationException("SecurityAudit:Jwt:SigningKeyBase64 must be provided via environment/secret store.");
+
+        byte[] keyBytes;
+        try
+        {
+            keyBytes = Convert.FromBase64String(signingKeyBase64);
+        }
+        catch (FormatException)
+        {
+            throw new InvalidOperationException("SecurityAudit:Jwt:SigningKeyBase64 must be valid Base64.");
+        }
 
         if (keyBytes.Length < 32)
         {
             SecureZero(keyBytes);
-            throw new InvalidOperationException("SecurityAudit:Jwt:SigningKey must be at least 32 characters.");
+            throw new InvalidOperationException("SecurityAudit:Jwt:SigningKeyBase64 must decode to at least 32 bytes.");
         }
 
         try
