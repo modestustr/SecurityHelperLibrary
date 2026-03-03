@@ -42,12 +42,35 @@ builder.Services.AddSwaggerGen();
 
 string jwtIssuer = builder.Configuration["SecurityAudit:Jwt:Issuer"] ?? "SecurityHelperLibrary.Sample";
 string jwtAudience = builder.Configuration["SecurityAudit:Jwt:Audience"] ?? "SecurityHelperLibrary.Sample.Admin";
-string jwtSigningKey = builder.Configuration["SecurityAudit:Jwt:SigningKey"] ?? "change-this-signing-key-at-least-32-characters";
-byte[] jwtSigningKeyBytes = Encoding.UTF8.GetBytes(jwtSigningKey);
+string jwtSigningKeyBase64 = builder.Configuration["SecurityAudit:Jwt:SigningKeyBase64"];
+if (string.IsNullOrWhiteSpace(jwtSigningKeyBase64) || jwtSigningKeyBase64.StartsWith("__SET_VIA_ENV", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException("SecurityAudit:Jwt:SigningKeyBase64 must be provided via environment/secret store.");
+}
+
+byte[] jwtSigningKeyBytes;
+try
+{
+    jwtSigningKeyBytes = Convert.FromBase64String(jwtSigningKeyBase64);
+}
+catch (FormatException)
+{
+    throw new InvalidOperationException("SecurityAudit:Jwt:SigningKeyBase64 must be valid Base64.");
+}
+
 if (jwtSigningKeyBytes.Length < 32)
 {
-    throw new InvalidOperationException("SecurityAudit:Jwt:SigningKey must be at least 32 characters.");
+    throw new InvalidOperationException("SecurityAudit:Jwt:SigningKeyBase64 must decode to at least 32 bytes.");
 }
+
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString) || connectionString.StartsWith("__SET_VIA_ENV", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be provided via environment/secret store.");
+}
+
+byte[] validationSigningKey = (byte[])jwtSigningKeyBytes.Clone();
+Array.Clear(jwtSigningKeyBytes, 0, jwtSigningKeyBytes.Length);
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -61,7 +84,7 @@ builder.Services
             ValidateLifetime = true,
             ValidIssuer = jwtIssuer,
             ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(jwtSigningKeyBytes),
+            IssuerSigningKey = new SymmetricSecurityKey(validationSigningKey),
             ClockSkew = TimeSpan.Zero
         };
     });
@@ -72,9 +95,6 @@ builder.Services.AddAuthorization();
 // SQLite connection string points to "app.db" in the application directory
 // This makes it easy to develop locally without setting up a database server
 // In production, switch to SQL Server, PostgreSQL, Azure SQL, etc.
-string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=app.db"; // Fallback to local SQLite if not configured
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     // Use SQLite provider
@@ -100,15 +120,24 @@ builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddSingleton<ISecurityIncidentStore, InMemorySecurityIncidentStore>();
 builder.Services.AddScoped<ISecurityHelper>(serviceProvider =>
 {
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
     var incidentStore = serviceProvider.GetRequiredService<ISecurityIncidentStore>();
     var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
     var incidentLogger = loggerFactory.CreateLogger("SecurityIncidents");
+    var argon2Options = new SecurityHelperOptions
+    {
+        Argon2DefaultIterations = configuration.GetValue<int?>("SecurityHelper:Argon2Defaults:Iterations") ?? 4,
+        Argon2DefaultMemoryKb = configuration.GetValue<int?>("SecurityHelper:Argon2Defaults:MemoryKb") ?? 131072,
+        Argon2DefaultDegreeOfParallelism = configuration.GetValue<int?>("SecurityHelper:Argon2Defaults:DegreeOfParallelism") ?? 4,
+        Argon2DefaultHashLength = configuration.GetValue<int?>("SecurityHelper:Argon2Defaults:HashLength") ?? 32
+    };
 
     return new SecurityHelper(incidentCode =>
     {
+        string structuredIncident = $"SEC_EVT|source=SecurityHelper|code={incidentCode}|ts={DateTimeOffset.UtcNow:O}";
         incidentStore.Add(incidentCode);
-        incidentLogger.LogWarning("Security incident detected: {IncidentCode}", incidentCode);
-    });
+        incidentLogger.LogWarning("Security incident detected: {Incident}", structuredIncident);
+    }, argon2Options);
 });
 
 // Add CORS (Cross-Origin Resource Sharing) for frontend access
