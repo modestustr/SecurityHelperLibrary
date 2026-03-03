@@ -2,7 +2,7 @@ name: Publish NuGet Package
 
 on:
   workflow_run:
-    workflows: ['Security Pentest Suite', 'Build & Test Suite']
+    workflows: ['Build & Test Suite']
     branches: [ master ]
     types: [ completed ]
   workflow_dispatch:
@@ -40,18 +40,41 @@ jobs:
           const branch = context.payload.workflow_run?.head_branch || 'master';
           const required = ['Security Pentest Suite', 'Build & Test Suite'];
 
-          const { data } = await github.rest.actions.listWorkflowRunsForRepo({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            head_sha: sha,
-            branch,
-            per_page: 100
-          });
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+          const maxAttempts = 30;
+          const waitMs = 10000;
 
-          const runs = data.workflow_runs || [];
-          const allPassed = required.every(name =>
-            runs.some(r => r.name === name && r.conclusion === 'success')
-          );
+          let runs = [];
+          let allPassed = false;
+
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head_sha: sha,
+              branch,
+              per_page: 100
+            });
+
+            runs = data.workflow_runs || [];
+            allPassed = required.every(name =>
+              runs.some(r => r.name === name && r.conclusion === 'success')
+            );
+
+            if (allPassed) {
+              break;
+            }
+
+            const allCompleted = required.every(name =>
+              runs.some(r => r.name === name && r.status === 'completed')
+            );
+
+            if (allCompleted) {
+              break;
+            }
+
+            await sleep(waitMs);
+          }
 
           if (!allPassed) {
             const snapshot = required
