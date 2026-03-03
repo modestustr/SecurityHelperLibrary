@@ -80,6 +80,26 @@ public class AuthResponse
     /// Derived keys (HKDF/AES/HMAC) demonstrated by the sample.
     /// </summary>
     public IEnumerable<DerivedKeyDto>? DerivedKeys { get; set; }
+
+    /// <summary>
+    /// JWT access token for authenticated requests.
+    /// </summary>
+    public string? AccessToken { get; set; }
+
+    /// <summary>
+    /// Token type for Authorization header.
+    /// </summary>
+    public string? TokenType { get; set; }
+
+    /// <summary>
+    /// UTC expiration time of the access token.
+    /// </summary>
+    public DateTime? AccessTokenExpiresAtUtc { get; set; }
+
+    /// <summary>
+    /// Role embedded in the access token (for sample visibility).
+    /// </summary>
+    public string? Role { get; set; }
 }
 
 /// <summary>

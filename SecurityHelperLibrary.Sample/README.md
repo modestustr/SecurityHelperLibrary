@@ -213,6 +213,47 @@ curl -X POST https://localhost:5001/api/auth/login \
 }
 ```
 
+### 5. Admin Security Incident Feed
+**GET** `/api/security-audit/incidents?take=100`
+
+This endpoint returns internal security incident codes captured by `SecurityHelper` (for example malformed PBKDF2 payload attempts). It does not expose attacker input payloads.
+
+Access is protected by JWT role authorization: only tokens with `role=Admin` are accepted.
+
+Admin role assignment is configured via `SecurityAudit:AdminUsers` in `appsettings.json`.
+
+**Example Response:**
+```json
+[
+  {
+    "timestampUtc": "2026-03-03T16:31:09.125Z",
+    "code": "PBKDF2_SPAN_FORMAT_PARTS"
+  },
+  {
+    "timestampUtc": "2026-03-03T16:31:12.488Z",
+    "code": "AES_GCM_DECRYPT_PARSE|FormatException"
+  }
+]
+```
+
+**Step 1: Login and get token**
+```bash
+curl -X POST "https://localhost:5001/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "usernameOrEmail": "admin",
+    "password": "your-password"
+  }'
+```
+
+Read `accessToken` from the login response.
+
+**Step 2: Call admin incidents endpoint with Bearer token**
+```bash
+curl -X GET "https://localhost:5001/api/security-audit/incidents?take=50" \
+  -H "Authorization: Bearer <accessToken>"
+```
+
 ## 📝 Code Highlights
 
 ### UserService - Password Hashing
@@ -398,6 +439,16 @@ curl -X POST https://localhost:5001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"usernameOrEmail":"test@example.com","password":"Test123!"}'
 ```
+
+### Automated smoke test script
+
+Run the helper script in the repository root when you want a repeatable set of HTTP requests with no manual curl commands.
+
+```powershell
+.\scripts\run-sample-tests.ps1
+```
+
+By default the script starts the sample on HTTP port 5000, registers a fresh test user, checks availability, logs in, and tears the process down. Pass `-PreferHttps` if you want to exercise `https://localhost:5001`, or override `-HttpPort`/`-HttpsPort` if those bindings conflict with other services.
 
 ## 📄 Files Overview
 

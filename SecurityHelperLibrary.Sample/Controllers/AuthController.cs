@@ -5,7 +5,6 @@ using SecurityHelperLibrary.Sample.Models;
 using SecurityHelperLibrary.Sample.Services;
 using System.Collections.Generic;
 using System.Net;
-using System.Security.Cryptography;
 
 namespace SecurityHelperLibrary.Sample.Controllers;
 
@@ -48,6 +47,8 @@ public class AuthController : ControllerBase
     /// Logger for recording events and errors (optional, for debugging).
     /// </summary>
     private readonly ILogger<AuthController> _logger;
+    private readonly IJwtTokenService _jwtTokenService;
+    private readonly ISecurityHelper _securityHelper;
     private static readonly RateLimiter RegisterUsernameRateLimiter = new(maxAttempts: 3, windowDurationSeconds: 60);
     private static readonly RateLimiter RegisterIpRateLimiter = new(maxAttempts: 20, windowDurationSeconds: 60);
     private static readonly RateLimiter LoginUsernameRateLimiter = new(maxAttempts: 5, windowDurationSeconds: 60);
@@ -56,11 +57,13 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Constructor - dependencies are injected automatically by ASP.NET Core DI container.
     /// </summary>
-    public AuthController(IUserService userService, ApplicationDbContext dbContext, ILogger<AuthController> logger)
+    public AuthController(IUserService userService, ApplicationDbContext dbContext, ILogger<AuthController> logger, IJwtTokenService jwtTokenService, ISecurityHelper securityHelper)
     {
         _userService = userService ?? throw new ArgumentNullException(nameof(userService));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _jwtTokenService = jwtTokenService ?? throw new ArgumentNullException(nameof(jwtTokenService));
+        _securityHelper = securityHelper ?? throw new ArgumentNullException(nameof(securityHelper));
     }
 
     /// <summary>
@@ -289,9 +292,9 @@ public class AuthController : ControllerBase
         }
 
         var userDto = MapToUserDto(user!);
+        JwtTokenResult token = _jwtTokenService.CreateToken(user!);
 
-        byte[] sessionSeed = new byte[32];
-        RandomNumberGenerator.Fill(sessionSeed);
+        byte[] sessionSeed = _securityHelper.GenerateSymmetricKey(32);
         IEnumerable<DerivedKeyDto> derivedKeys;
         try
         {
@@ -299,7 +302,7 @@ public class AuthController : ControllerBase
         }
         finally
         {
-            Array.Clear(sessionSeed, 0, sessionSeed.Length);
+            _securityHelper.ClearSensitiveData(sessionSeed);
         }
 
         return Ok(new AuthResponse
@@ -307,7 +310,11 @@ public class AuthController : ControllerBase
             Success = true,
             Message = message,
             User = userDto,
-            DerivedKeys = derivedKeys
+            DerivedKeys = derivedKeys,
+            AccessToken = token.AccessToken,
+            TokenType = "Bearer",
+            AccessTokenExpiresAtUtc = token.ExpiresAtUtc,
+            Role = token.Role
         });
     }
 
@@ -414,28 +421,40 @@ public class AuthController : ControllerBase
         };
     }
 
-    private static IEnumerable<DerivedKeyDto> BuildDerivedKeys(byte[] masterSecret, string context)
+    private IEnumerable<DerivedKeyDto> BuildDerivedKeys(byte[] masterSecret, string context)
     {
-        byte[][] keys = KeyDerivation.DeriveMultipleKeys(
-            HashAlgorithmName.SHA256,
+        byte[][] keys = _securityHelper.DeriveMultipleKeys(
             masterSecret,
             keyCount: 2,
             keyLength: 32,
             context: context);
 
-        return new[]
+        try
         {
-            new DerivedKeyDto
+            return new[]
             {
-                Purpose = "SessionEncryption",
-                Base64Key = Convert.ToBase64String(keys[0])
-            },
-            new DerivedKeyDto
+                new DerivedKeyDto
+                {
+                    Purpose = "SessionEncryption",
+                    Base64Key = Convert.ToBase64String(keys[0])
+                },
+                new DerivedKeyDto
+                {
+                    Purpose = "SessionAuthentication",
+                    Base64Key = Convert.ToBase64String(keys[1])
+                }
+            };
+        }
+        finally
+        {
+            foreach (byte[] key in keys)
             {
-                Purpose = "SessionAuthentication",
-                Base64Key = Convert.ToBase64String(keys[1])
+                if (key != null && key.Length > 0)
+                {
+                    _securityHelper.ClearSensitiveData(key);
+                }
             }
-        };
+        }
     }
 
     private static string NormalizeIdentifier(string value)

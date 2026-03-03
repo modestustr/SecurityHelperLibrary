@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using SecurityHelperLibrary;
 using SecurityHelperLibrary.Sample.Data;
 using SecurityHelperLibrary.Sample.Services;
+using System.Text;
 
 /// <summary>
 /// Main Program.cs for ASP.NET Core Application.
@@ -37,6 +40,34 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+string jwtIssuer = builder.Configuration["SecurityAudit:Jwt:Issuer"] ?? "SecurityHelperLibrary.Sample";
+string jwtAudience = builder.Configuration["SecurityAudit:Jwt:Audience"] ?? "SecurityHelperLibrary.Sample.Admin";
+string jwtSigningKey = builder.Configuration["SecurityAudit:Jwt:SigningKey"] ?? "change-this-signing-key-at-least-32-characters";
+byte[] jwtSigningKeyBytes = Encoding.UTF8.GetBytes(jwtSigningKey);
+if (jwtSigningKeyBytes.Length < 32)
+{
+    throw new InvalidOperationException("SecurityAudit:Jwt:SigningKey must be at least 32 characters.");
+}
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(jwtSigningKeyBytes),
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 // CONFIGURE DATABASE: SQLite
 // SQLite connection string points to "app.db" in the application directory
 // This makes it easy to develop locally without setting up a database server
@@ -65,7 +96,20 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // IMPORTANT: ISecurityHelper is from SecurityHelperLibrary package
 //            We implement it as SecurityHelper (the concrete class)
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ISecurityHelper, SecurityHelper>();
+builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
+builder.Services.AddSingleton<ISecurityIncidentStore, InMemorySecurityIncidentStore>();
+builder.Services.AddScoped<ISecurityHelper>(serviceProvider =>
+{
+    var incidentStore = serviceProvider.GetRequiredService<ISecurityIncidentStore>();
+    var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+    var incidentLogger = loggerFactory.CreateLogger("SecurityIncidents");
+
+    return new SecurityHelper(incidentCode =>
+    {
+        incidentStore.Add(incidentCode);
+        incidentLogger.LogWarning("Security incident detected: {IncidentCode}", incidentCode);
+    });
+});
 
 // Add CORS (Cross-Origin Resource Sharing) for frontend access
 // Configure this based on your frontend URL in production
@@ -106,9 +150,8 @@ app.UseHttpsRedirection();
 // Enable CORS
 app.UseCors("AllowAll");
 
-// Add authentication middleware (if you add JWT later)
-// app.UseAuthentication();
-// app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Map controller routes
 app.MapControllers();

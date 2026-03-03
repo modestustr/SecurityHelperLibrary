@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.2] - 2026-03-03
+- Security: Added internal incident logging path with generic external cryptographic error surface to reduce oracle-style information leakage.
+- Security: Hardened JWT signing-key handling in sample token service by removing long-lived class-level key storage and zeroing temporary key bytes after token creation.
+- Security: Added Argon2 `degreeOfParallelism` upper bound to reduce resource-exhaustion/DoS risk from unbounded tuning.
+- Architecture: Removed obsolete alias from `ISecurityHelper` and expanded helper facade for HKDF multi-key derivation to centralize cryptographic policy.
+- Architecture: Refactored sample `AuthController` to use `ISecurityHelper` for key generation, derivation, and buffer cleanup (no direct cryptography namespace dependency).
+- Sample: Replaced shared admin header key model with JWT + role-based authorization for security incident feed.
+- Tests: Updated pentest/unit suite for hardened exception model and validated multi-target pass (`net481`, `net8.0`).
+
 ## [2.1.1] - 2026-03-01
 - Fix: Make `RateLimiter.IsAllowed()` deterministic and thread-safe under concurrent requests.
 - Fix: Restore AES-GCM empty-plaintext round-trip compatibility in `DecryptStringGCM()`.

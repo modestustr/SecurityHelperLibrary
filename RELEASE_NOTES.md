@@ -1,5 +1,43 @@
 # Release Notes - SecurityHelperLibrary
 
+## 2.1.2 (2026-03-03)
+
+### Overview
+This patch release finalizes the recent hardening cycle by tightening key management, reducing architectural crypto leakage, and aligning sample authorization with role-based access control.
+
+### Security Improvements
+- **Incident telemetry + ketum error model**
+   - Internal incident codes are now logged while external callers continue to receive generic cryptographic errors.
+   - Helps defenders classify attack attempts without exposing parser/validation internals.
+
+- **JWT signing-key memory hygiene (sample)**
+   - Token service no longer keeps the signing key as a long-lived class field.
+   - Signing bytes are materialized per operation and securely zeroed after use.
+
+- **Argon2 resource exhaustion guard**
+   - Added an upper bound for `degreeOfParallelism` to prevent extreme values from exhausting compute resources.
+
+### Architecture Improvements
+- **ISecurityHelper cleanup**
+   - Removed obsolete alias contract and expanded helper facade for HKDF multi-key derivation.
+   - Cryptographic policy is more centralized in the helper abstraction.
+
+- **AuthController crypto decoupling (sample)**
+   - Controller now uses `ISecurityHelper` for seed generation, key derivation, and sensitive buffer cleanup.
+   - Eliminates direct controller-level dependency on cryptography namespace types.
+
+- **Admin security feed authorization (sample)**
+   - Replaced shared header key model with JWT bearer + role-based (`Admin`) authorization.
+
+### Validation
+- Full test suite passes on supported targets:
+   - `net481`: 65 passed
+   - `net8.0`: 85 passed
+
+### Compatibility
+- ✅ No breaking changes for standard consumers of core hashing/encryption APIs.
+- ✅ Multi-target support preserved (`net481`, `net8.0`).
+
 ## 2.1.1 (2026-03-01)
 
 ### Overview
