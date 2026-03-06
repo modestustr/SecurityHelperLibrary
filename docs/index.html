@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SecurityHelperLibrary - Quick Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <link rel="icon" href="../SecurityHelperLibrary/Security.ico" type="image/x-icon">
+  <style>
+    :root {
+      --brand-dark: #030712;
+      --brand-muted: #96a4b6;
+      --brand-accent: #2ad2ff;
+      --panel: rgba(3, 7, 18, 0.8);
+      --border-soft: rgba(255, 255, 255, 0.3);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top right, rgba(42, 210, 255, 0.25), transparent 35%),
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.12), transparent 45%),
+        #030712;
+      color: #f5f6fb;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    .brand-heading {
+      font-family: 'Playfair Display', serif;
+      letter-spacing: 0.08em;
+    }
+
+    .glass-panel {
+      background: var(--panel);
+      border: 1px solid var(--border-soft);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 20px 45px rgba(2, 6, 14, 0.65);
+    }
+
+    .nav-link {
+      color: var(--brand-muted);
+    }
+
+    .nav-link.active,
+    .nav-link:hover {
+      color: #fff;
+    }
+
+    .accent-line {
+      height: 4px;
+      width: 48px;
+      background: linear-gradient(90deg, #2ad2ff, #8c5ef7);
+      border-radius: 12px;
+    }
+
+    pre {
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      font-size: 0.95rem;
+      overflow-x: auto;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-family: 'Playfair Display', serif;
+    }
+    .text-soft {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .slide-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #2ad2ff, #8c5ef7);
+      display: none;
+      z-index: 2000;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, rgba(2, 8, 20, 0.95), rgba(4, 12, 32, 0.85));
+      border-bottom: 2px solid rgba(42, 210, 255, 0.4);
+      box-shadow: 0 15px 30px rgba(2, 6, 14, 0.65);
+    }
+
+    .back-to-top {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 48px;
+      height: 48px;
+      border: none;
+      border-radius: 50%;
+      padding: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #030712;
+      background: linear-gradient(135deg, #2ad2ff, #5a7bff);
+      display: none;
+      line-height: 48px;
+      text-align: center;
+      box-shadow: 0 20px 35px rgba(5, 9, 20, 0.5);
+      z-index: 2100;
+      cursor: pointer;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .back-to-top:hover {
+      transform: translateY(-4px);
+    }
+
+    .nuget-widget {
+      background: rgba(5, 9, 20, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      min-height: 140px;
+    }
+    .nuget-widget canvas {
+      display: block;
+      width: 100% !important;
+      max-height: 200px;
+      min-height: 180px;
+    }
+
+    .navbar-custom {
+      background: linear-gradient(135deg, rgba(2, 8, 20, 0.95), rgba(4, 12, 32, 0.85));
+      border-bottom: 2px solid rgba(42, 210, 255, 0.4);
+      box-shadow: 0 15px 30px rgba(2, 6, 14, 0.65);
+    }
+
+    @media (max-width: 991px) {
+      .navbar {
+        backdrop-filter: blur(18px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="back-to-top" type="button" aria-label="Back to top">
+    <span aria-hidden="true">↑</span>
+  </button>
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom position-sticky top-0 start-0 end-0 px-4 py-3">
+    <div class="container-fluid">
+      <a class="navbar-brand text-white brand-heading" href="#hero">
+        <img src="../SecurityHelperLibrary/Security.ico" alt="Logo" width="28" height="28" class="d-inline-block align-text-top me-2">
+        SecurityHelperLibrary</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navMenu">
+        <div class="navbar-nav ms-auto gap-3">
+          <a class="nav-link active" href="#hero">Overview</a>
+          <a class="nav-link" href="#features">Features</a>
+          <a class="nav-link" href="#quick-start">Quick Start</a>
+          <a class="nav-link" href="#release">Release Flow</a>
+          <a class="nav-link" href="#security">Security Notes</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container py-5">
+    <section id="hero" class="py-5 text-center">
+      <p class="mb-2 text-uppercase text-white-50">Multi-target cryptography</p>
+      <h1 class="display-5 brand-heading mb-3">SecurityHelperLibrary</h1>
+      <p class="lead mx-auto" style="max-width: 720px;">A security-first helper library that binds PBKDF2, Argon2id, HMAC, and AES-GCM while keeping architectural separation clean for both .NET Framework and .NET 8 projects.</p>
+      <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+        <a class="btn btn-outline-light btn-lg" href="#quick-start">Get Started</a>
+        <a class="btn btn-primary btn-lg" href="https://www.nuget.org/packages/SecurityHelperLibrary/">NuGet Page</a>
+      </div>
+    </section>
+
+    <section id="features" class="py-5">
+      <div class="section-title mb-4">
+        <div class="accent-line"></div>
+        <h2>Highlights</h2>
+      </div>
+      <div class="row g-4">
+        <article class="col-md-6">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h5 text-white">Timing-Attack Resistance</h3>
+              <p class="text-soft">Fixed-time comparisons and cryptographic helpers prevent leakage during verification.</p>
+              <p class="text-white-50">`ReadOnlySpan` overloads and `ClearSensitiveData` call sites keep secrets off long-lived memory.</p>
+          </div>
+        </article>
+        <article class="col-md-6">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h5 text-white">Modern + Legacy Targets</h3>
+              <p class="text-soft">Single package works for both `net481` and `net8.0`, each with dedicated security gates.</p>
+              <p class="text-white-50">Release 2.1.2 added RBAC auditing, incident telemetry, and hardened error surfaces.</p>
+          </div>
+        </article>
+        <article class="col-md-6">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h5 text-white">Argon2 Safeguards</h3>
+              <p class="text-soft">Minimum 64MB memory, capped parallelism, and enforced iteration depth balance safety vs resources.</p>
+              <p class="text-white-50">Non-supported targets throw safe `NotSupportedException` wrappers instead of failing silently.</p>
+          </div>
+        </article>
+        <article class="col-md-6">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h5 text-white">AES-GCM + HMAC</h3>
+              <p class="text-soft">Convenient encrypt/decrypt helpers and HMAC utilities for modern runtimes.</p>
+              <p class="text-white-50">Key creation, IV management, and cleanup helpers ship with zeroing utilities.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="quick-start" class="py-5">
+      <div class="section-title mb-4">
+        <div class="accent-line"></div>
+        <h2>Quick Start</h2>
+      </div>
+      <div class="row g-4">
+        <article class="col-lg-4">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h6 text-white">PBKDF2 Password</h3>
+              <p class="text-soft">SHA-256, 210,000 iterations, and a 32-byte hash for high-cost verification.</p>
+            <pre><code>var helper = new SecurityHelper();
+var stored = helper.HashPasswordWithPBKDF2("MyPassword123!", out var salt, HashAlgorithmName.SHA256, iterations: 210000);
+var valid = helper.VerifyPasswordWithPBKDF2("MyPassword123!", stored);</code></pre>
+            <p class="text-white-50">Use the `stored` payload anywhere persistent storage is needed.</p>
+          </div>
+        </article>
+        <article class="col-lg-4">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h6 text-white">Argon2id</h3>
+              <p class="text-soft">Four iterations, 128MB memory, and parallelism of 4 for modern hash safety.</p>
+            <pre><code>string salt = helper.GenerateSalt();
+string hash = helper.HashPasswordWithArgon2("MyPassword123!", salt, iterations: 4, memoryKb: 131072, degreeOfParallelism: 4, hashLength: 32);
+bool verified = helper.VerifyPasswordWithArgon2("MyPassword123!", hash);</code></pre>
+            <p class="text-white-50">Store the hash and salt, then verify when needed.</p>
+          </div>
+        </article>
+        <article class="col-lg-4">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h6 text-white">AES-GCM</h3>
+              <p class="text-soft">Encrypt strings and protect secrets with AES-GCM on supported targets.</p>
+            <pre><code>byte[] key = helper.GenerateSymmetricKey(32);
+string cipher = helper.EncryptStringGCM("sensitive value", key);
+string plain = helper.DecryptStringGCM(cipher, key);
+helper.ClearSensitiveData(key);</code></pre>
+            <p class="text-white-50">Always clear buffers when done to keep secrets from lingering.</p>
+          </div>
+        </article>
+      </div>
+      <div class="text-center mt-4">
+        <a class="btn btn-outline-light" href="https://www.nuget.org/packages/SecurityHelperLibrary/">NuGet 2.1.2</a>
+        <a class="btn btn-link text-white-50" href="../SecurityHelperLibrary/README.md">Source Guide</a>
+      </div>
+      <div class="row justify-content-center mt-4">
+        <div class="col-md-6 col-lg-5">
+          <div class="p-4 glass-panel nuget-widget">
+            <h3 class="h6 text-white mb-3">Live NuGet Status</h3>
+            <p class="mb-1">Latest version: <strong class="text-white" id="nuget-version">–</strong></p>
+            <p class="mb-1">Published: <strong class="text-white" id="nuget-published">–</strong></p>
+            <p class="mb-1">Downloads: <strong class="text-white" id="nuget-downloads">–</strong></p>
+            <p class="small mb-0 text-white-50" id="nuget-status">Fetching latest release from NuGet...</p>
+          </div>
+        </div>
+      </div>
+      <div class="row justify-content-center mt-3">
+        <div class="col-12">
+          <div class="p-4 glass-panel nuget-widget">
+            <h3 class="h6 text-white mb-3">Downloads History</h3>
+            <canvas id="nuget-chart" height="160"></canvas>
+            <p class="small mb-0 text-white-50 mt-2" id="nuget-chart-status">Histogram loads the latest NuGet counts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="release" class="py-5">
+      <div class="section-title mb-4">
+        <div class="accent-line"></div>
+        <h2>Release Flow & Pipelines</h2>
+      </div>
+      <div class="glass-panel p-4">
+        <p class="text-white-50">Every release follows a `release/x.y.z` branch, runs `./scripts/release.bat`, and updates `CHANGELOG.md` plus `<csproj>` metadata. Pentest and build checks (GitHub Actions) must pass before merging into master.</p>
+        <div class="row mt-4">
+          <div class="col-md-6">
+            <h3 class="h6 text-white">Checkpoints</h3>
+            <ul class="text-soft ps-3">
+              <li>Master is locked until branch protection, pentest, and build success are verified.</li>
+              <li>Security incidents log Ketum codes internally while exposing generic errors externally.</li>
+              <li>Release branches auto-bump versions and regenerate NuGet metadata.</li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h3 class="h6 text-white">Tests</h3>
+            <ul class="text-soft ps-3">
+              <li>`dotnet test` covers every target with the full xUnit suite.</li>
+              <li>The pentest pack runs each commit against 13 attack vectors.</li>
+              <li>The sample app demonstrates JWT + role-based incident auditing.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="versions" class="py-5">
+      <div class="section-title mb-4">
+        <div class="accent-line"></div>
+        <h2>Version Timeline</h2>
+      </div>
+      <div class="row g-4">
+        <article class="col-md-6 col-lg-4">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h5 text-white">v2.1.2 (Current)</h3>
+            <p class="text-soft">Rol-based auditing, incident telemetry, Argon2 hardening, and internal Ketum error tracking landed here.</p>
+            <ul class="text-soft ps-3">
+              <li>PBKDF2/Argon2 & AES-GCM helpers tuned for multi-target builds.</li>
+              <li>RBAC, secure audit feed, and incident-code logging.</li>
+              <li>Pentest suite + CI/CD gating ensures master stays hardened.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="col-md-6 col-lg-4">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h5 text-white">v2.0.3</h3>
+            <p class="text-soft">Cross-target compatibility, AES-GCM compliance, and Span-based secure helpers shipped prior to 2.1.</p>
+            <ul class="text-soft ps-3">
+              <li>Span-based PBKDF2/Argon2 APIs plus secure zeroing helpers.</li>
+              <li>Conditional AES-GCM wrappers for .NET 6+ while defaulting to safe failure on older runtimes.</li>
+              <li>Expanded xUnit coverage across PBKDF2, Argon2, HMAC, and AES scenarios.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="col-md-6 col-lg-4">
+          <div class="p-4 glass-panel h-100">
+            <h3 class="h5 text-white">Upcoming: v2.2.0</h3>
+            <p class="text-soft">In-progress enhancements focus on telemetry, low-level Argon2 guards, and sample security polish.</p>
+            <ul class="text-soft ps-3">
+              <li>Extended telemetry hooks + improved incident reporting UI.</li>
+              <li>AI-assisted pentest automation in the sample app.</li>
+              <li>Doc refresh with this page and release asset bundling.</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="security" class="py-5">
+      <div class="section-title mb-4">
+        <div class="accent-line"></div>
+        <h2>Security Tips</h2>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="glass-panel p-4 h-100">
+            <h3 class="h6 text-white">Memory Hygiene</h3>
+            <p class="text-soft">Always zero Argon2 and PBKDF2 outputs via `ClearSensitiveData`.</p>
+            <p class="text-white-50">`ReadOnlySpan` overloads keep sensitive values transient and short-lived.</p>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="glass-panel p-4 h-100">
+            <h3 class="h6 text-white">Logging & Telemetry</h3>
+            <p class="text-soft">Internal logs map incidents to Ketum codes while external clients receive sanitized error messages.</p>
+            <p class="text-white-50">Role-based auditing keeps `SecurityAuditController` dashboards viewable only by approved staff.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="text-center py-4 text-white-50 border-top border-1" style="border-color: rgba(255,255,255,0.1);">
+    Visit the
+    <a class="text-white fw-semibold" href="https://github.com/modestustr/SecurityHelperLibrary" target="_blank" rel="noopener noreferrer">GitHub repository</a>
+    for security requests and working samples.
+  </footer>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const links = document.querySelectorAll('.nav-link');
+      const sections = Array.from(links)
+        .map(link => document.querySelector(link.getAttribute('href')))
+        .filter(Boolean);
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const id = entry.target.getAttribute('id');
+          const link = document.querySelector(`.nav-link[href="#${id}"]`);
+          if (link) {
+            link.classList.toggle('active', entry.isIntersecting);
+          }
+        });
+      }, { threshold: 0.35 });
+      sections.forEach(section => observer.observe(section));
+    });
+  </script>
+  <script>
+    $(function () {
+      const indicator = $('<div class="slide-indicator"></div>').appendTo('body');
+      const toTop = $('.back-to-top');
+      $('.nav-link').on('click', function (event) {
+        const targetId = $(this).attr('href');
+        if (!targetId || targetId.charAt(0) !== '#') {
+          return;
+        }
+        event.preventDefault();
+        const targetSection = $(targetId);
+        if (!targetSection.length) {
+          return;
+        }
+        const offsetTop = targetSection.offset().top - 72;
+        indicator.stop(true, true).slideDown(220).delay(180).slideUp(220);
+        $('html, body').animate({ scrollTop: offsetTop }, 620);
+        if ($('#navMenu').hasClass('show') && $('.navbar-toggler').is(':visible')) {
+          $('#navMenu').collapse('hide');
+        }
+      });
+      $(window).on('scroll', () => {
+        if ($(window).scrollTop() > 160) {
+          toTop.fadeIn(220);
+        } else {
+          toTop.fadeOut(220);
+        }
+      });
+      toTop.on('click', () => {
+        indicator.stop(true, true).slideDown(220).delay(180).slideUp(220);
+        $('html, body').animate({ scrollTop: 0 }, 620);
+      });
+    });
+  </script>
+  <script>
+    (function () {
+      const registrationUrl = 'https://api.nuget.org/v3/registration5-gz-semver2/securityhelperlibrary/index.json';
+      const versionEl = document.getElementById('nuget-version');
+      const publishedEl = document.getElementById('nuget-published');
+      const statusEl = document.getElementById('nuget-status');
+      const chartStatusEl = document.getElementById('nuget-chart-status');
+      const chartCanvas = document.getElementById('nuget-chart');
+      let nugetChart;
+      if (!versionEl || !publishedEl || !statusEl || !chartCanvas || !chartCanvas.getContext) {
+        return;
+      }
+      const ctx = chartCanvas.getContext('2d');
+      fetch(registrationUrl)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`NuGet status ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+          const ranges = data.items || [];
+          const entries = ranges.flatMap(range => range.items || []);
+          const latest = entries[entries.length - 1];
+          if (!latest) {
+            throw new Error('No versions found');
+          }
+          versionEl.textContent = latest.catalogEntry?.version || '—';
+          publishedEl.textContent = latest.catalogEntry?.published ? new Date(latest.catalogEntry.published).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+          const numberFormatter = new Intl.NumberFormat('en-US');
+          let downloads = latest.catalogEntry?.downloads;
+          if (!downloads && data.totalDownloads) {
+            downloads = data.totalDownloads;
+          }
+          document.getElementById('nuget-downloads').textContent = downloads ? numberFormatter.format(downloads) : '—';
+          statusEl.textContent = 'Fetched from NuGet automatically.';
+          const recent = entries.slice(Math.max(entries.length - 5, 0));
+          const labels = recent.map(item => item.catalogEntry?.version || '—').reverse();
+          const values = recent.map(item => item.catalogEntry?.downloads || 0).reverse();
+          if (nugetChart) {
+            nugetChart.data.labels = labels;
+            nugetChart.data.datasets[0].data = values;
+            nugetChart.update();
+          } else {
+            nugetChart = new Chart(ctx, {
+              type: 'bar',
+              data: {
+                labels,
+                datasets: [{
+                  label: 'Downloads',
+                  data: values,
+                  backgroundColor: 'rgba(42, 210, 255, 0.65)',
+                  borderColor: 'rgba(42, 210, 255, 0.95)',
+                  borderWidth: 1
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      callback: value => numberFormatter.format(value)
+                    }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    display: false
+                  }
+                }
+              }
+            });
+          }
+          if (chartStatusEl) {
+            chartStatusEl.textContent = 'Histogram refreshed with the latest five releases.';
+          }
+        })
+        .catch(error => {
+          console.warn('NuGet widget load failed', error);
+          statusEl.textContent = 'Unable to reach NuGet right now.';
+          if (chartStatusEl) {
+            chartStatusEl.textContent = 'Histogram unavailable due to fetch failure.';
+          }
+        });
+    })();
+  </script>
+</body>
+</html>
