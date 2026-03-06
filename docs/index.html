@@ -124,18 +124,6 @@
       transform: translateY(-4px);
     }
 
-    .nuget-widget {
-      background: rgba(5, 9, 20, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      min-height: 140px;
-    }
-    .nuget-widget canvas {
-      display: block;
-      width: 100% !important;
-      max-height: 200px;
-      min-height: 180px;
-    }
-
     .navbar-custom {
       background: linear-gradient(135deg, rgba(2, 8, 20, 0.95), rgba(4, 12, 32, 0.85));
       border-bottom: 2px solid rgba(42, 210, 255, 0.4);
@@ -264,22 +252,44 @@ helper.ClearSensitiveData(key);</code></pre>
         <a class="btn btn-link text-white-50" href="../SecurityHelperLibrary/README.md">Source Guide</a>
       </div>
       <div class="row justify-content-center mt-4">
-        <div class="col-md-6 col-lg-5">
-          <div class="p-4 glass-panel nuget-widget">
-            <h3 class="h6 text-white mb-3">Live NuGet Status</h3>
-            <p class="mb-1">Latest version: <strong class="text-white" id="nuget-version">–</strong></p>
-            <p class="mb-1">Published: <strong class="text-white" id="nuget-published">–</strong></p>
-            <p class="mb-1">Downloads: <strong class="text-white" id="nuget-downloads">–</strong></p>
-            <p class="small mb-0 text-white-50" id="nuget-status">Fetching latest release from NuGet...</p>
-          </div>
-        </div>
-      </div>
-      <div class="row justify-content-center mt-3">
         <div class="col-12">
-          <div class="p-4 glass-panel nuget-widget">
-            <h3 class="h6 text-white mb-3">Downloads History</h3>
-            <canvas id="nuget-chart" height="160"></canvas>
-            <p class="small mb-0 text-white-50 mt-2" id="nuget-chart-status">Histogram loads the latest NuGet counts.</p>
+          <div class="glass-panel p-4">
+            <h3 class="h5 text-white mb-3">Release Notes Snapshot</h3>
+            <div class="row g-4">
+              <div class="col-lg-6">
+                <h4 class="h6 text-white">Current Package Details</h4>
+                <ul class="text-soft ps-3 mb-3">
+                  <li>Current package version: 2.1.2</li>
+                  <li>Target frameworks: net481 and net8.0</li>
+                  <li>Main crypto surfaces: PBKDF2, Argon2id, HMAC, AES-GCM</li>
+                  <li>Design goal: same API shape across legacy and modern runtimes</li>
+                </ul>
+                <h4 class="h6 text-white">Security Changes in 2.1.x</h4>
+                <ul class="text-soft ps-3 mb-0">
+                  <li>Role-based audit flow in the sample API</li>
+                  <li>Incident telemetry with internal Ketum code mapping</li>
+                  <li>Argon2 guardrails for memory floor and bounded parallelism</li>
+                  <li>Safer external error messages with internal diagnostics preserved</li>
+                </ul>
+              </div>
+              <div class="col-lg-6">
+                <h4 class="h6 text-white">Quality and Delivery</h4>
+                <ul class="text-soft ps-3 mb-3">
+                  <li>xUnit test coverage for hashing, verification, HMAC, and rate-limiting flows</li>
+                  <li>Pentest-oriented checks for common abuse and misuse scenarios</li>
+                  <li>Branch protection and release branch workflow before master merge</li>
+                  <li>Automated package metadata and changelog update process</li>
+                </ul>
+                <h4 class="h6 text-white">Useful References</h4>
+                <ul class="text-soft ps-3 mb-0">
+                  <li><a class="link-light" href="../CHANGELOG.md">CHANGELOG.md</a></li>
+                  <li><a class="link-light" href="../RELEASE_NOTES.md">RELEASE_NOTES.md</a></li>
+                  <li><a class="link-light" href="../CI_CD_STATUS.md">CI_CD_STATUS.md</a></li>
+                  <li><a class="link-light" href="../TEST_FEATURES.md">TEST_FEATURES.md</a></li>
+                  <li><a class="link-light" href="../SECURITY.md">SECURITY.md</a></li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -387,7 +397,7 @@ helper.ClearSensitiveData(key);</code></pre>
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const links = document.querySelectorAll('.nav-link');
@@ -439,94 +449,6 @@ helper.ClearSensitiveData(key);</code></pre>
         $('html, body').animate({ scrollTop: 0 }, 620);
       });
     });
-  </script>
-  <script>
-    (function () {
-      const registrationUrl = 'https://api.nuget.org/v3/registration5-gz-semver2/securityhelperlibrary/index.json';
-      const versionEl = document.getElementById('nuget-version');
-      const publishedEl = document.getElementById('nuget-published');
-      const statusEl = document.getElementById('nuget-status');
-      const chartStatusEl = document.getElementById('nuget-chart-status');
-      const chartCanvas = document.getElementById('nuget-chart');
-      let nugetChart;
-      if (!versionEl || !publishedEl || !statusEl || !chartCanvas || !chartCanvas.getContext) {
-        return;
-      }
-      const ctx = chartCanvas.getContext('2d');
-      fetch(registrationUrl)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`NuGet status ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          const ranges = data.items || [];
-          const entries = ranges.flatMap(range => range.items || []);
-          const latest = entries[entries.length - 1];
-          if (!latest) {
-            throw new Error('No versions found');
-          }
-          versionEl.textContent = latest.catalogEntry?.version || '—';
-          publishedEl.textContent = latest.catalogEntry?.published ? new Date(latest.catalogEntry.published).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-          const numberFormatter = new Intl.NumberFormat('en-US');
-          let downloads = latest.catalogEntry?.downloads;
-          if (!downloads && data.totalDownloads) {
-            downloads = data.totalDownloads;
-          }
-          document.getElementById('nuget-downloads').textContent = downloads ? numberFormatter.format(downloads) : '—';
-          statusEl.textContent = 'Fetched from NuGet automatically.';
-          const recent = entries.slice(Math.max(entries.length - 5, 0));
-          const labels = recent.map(item => item.catalogEntry?.version || '—').reverse();
-          const values = recent.map(item => item.catalogEntry?.downloads || 0).reverse();
-          if (nugetChart) {
-            nugetChart.data.labels = labels;
-            nugetChart.data.datasets[0].data = values;
-            nugetChart.update();
-          } else {
-            nugetChart = new Chart(ctx, {
-              type: 'bar',
-              data: {
-                labels,
-                datasets: [{
-                  label: 'Downloads',
-                  data: values,
-                  backgroundColor: 'rgba(42, 210, 255, 0.65)',
-                  borderColor: 'rgba(42, 210, 255, 0.95)',
-                  borderWidth: 1
-                }]
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: value => numberFormatter.format(value)
-                    }
-                  }
-                },
-                plugins: {
-                  legend: {
-                    display: false
-                  }
-                }
-              }
-            });
-          }
-          if (chartStatusEl) {
-            chartStatusEl.textContent = 'Histogram refreshed with the latest five releases.';
-          }
-        })
-        .catch(error => {
-          console.warn('NuGet widget load failed', error);
-          statusEl.textContent = 'Unable to reach NuGet right now.';
-          if (chartStatusEl) {
-            chartStatusEl.textContent = 'Histogram unavailable due to fetch failure.';
-          }
-        });
-    })();
   </script>
 </body>
 </html>
