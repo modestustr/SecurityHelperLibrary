@@ -21,7 +21,7 @@ jobs:
         fetch-depth: 0
 
     - name: Run gitleaks
-      uses: zricethezav/gitleaks-action@v2
+      uses: zricethezav/gitleaks-action@v3
       with:
         args: detect --source . --verbose --redact
       env:
