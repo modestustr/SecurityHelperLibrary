@@ -75,7 +75,6 @@ namespace SecurityHelperLibrary
                 : BaselineArgon2HashLength;
         }
 
-        // --- IMMUTABLE WORKING METHODS ---
 
         /// <summary>
         /// Creates a hash for the given input using the specified salt and hash algorithm.
@@ -261,8 +260,6 @@ namespace SecurityHelperLibrary
             else
                 throw new NotSupportedException("Algorithm " + hashAlgorithm.Name + " is not supported.");
         }
-
-        // --- NEW EXTENSIONS (ADDITION ONLY) ---
 
         /// <summary>
         /// Hashes a password using Argon2id algorithm. Requires Isopoh.Cryptography.Argon2 NuGet package.
@@ -555,8 +552,6 @@ namespace SecurityHelperLibrary
             else
                 throw new NotSupportedException($"Algorithm {hashAlgorithm.Name} is not supported for HMAC.");
         }
-
-        // --- SECURE STRING HANDLING EXTENSIONS ---
 
 #if NET6_0_OR_GREATER
         /// <summary>
