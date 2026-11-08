@@ -21,7 +21,7 @@ jobs:
         fetch-depth: 0
 
     - name: Run gitleaks
-      uses: zricethezav/gitleaks-action@v2
+      uses: zricethezav/gitleaks-action@v3
       with:
         args: detect --source . --verbose --redact
       env:
@@ -34,6 +34,6 @@ jobs:
 
     steps:
     - name: Dependency review
-      uses: actions/dependency-review-action@v4
+      uses: actions/dependency-review-action@v5
       with:
         fail-on-severity: moderate

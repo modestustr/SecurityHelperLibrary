@@ -27,7 +27,7 @@ jobs:
 
     - name: Verify prerequisite workflows
       id: gate
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           if (context.eventName === 'workflow_dispatch') {
@@ -137,7 +137,7 @@ jobs:
     
     - name: Create GitHub Release
       if: steps.gate.outputs.ready == 'true' && steps.version.outputs.version != ''
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: v${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
